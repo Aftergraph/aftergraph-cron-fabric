@@ -1,8 +1,9 @@
-# Owned by AVC profile - delivered to Aftergraph Ops (finding #11 fix).
+# Legacy autonomy-profile noise gate - delivered to Aftergraph Ops.
 # Implementation lives here so Aftergraph core stays platform-clean;
-# remove this file when AVC noise is gone. Create via cronjob in the
-# AVC profile session, deliver target Aftergraph Ops topic.
-name: ag-avc-noise-gate
+# remove this file when the legacy noise is gone. Create via cronjob in
+# the avc profile session (runtime routing truth), deliver target
+# Aftergraph Ops topic.
+name: ag-legacy-noise-gate
 owner_profile: avc
 schedule: every day at 9am
 deliver: telegram-ops-topic

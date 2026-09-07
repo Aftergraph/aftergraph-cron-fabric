@@ -6,6 +6,8 @@
 - Initial 7-job fabric + review spec.
 - Aftergraph brand setup: docs/brand.md, README hero/links, brand.identity
   source entry; GitHub About wired to aftergraph.org.
+- Brand naming compliance: avc noise gate renamed to
+  jobs/legacy/ag-legacy-noise-gate (owner_profile stays runtime truth).
 
 ## [0.1.0] - 2026-09-08
 

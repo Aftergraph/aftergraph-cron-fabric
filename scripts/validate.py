@@ -34,7 +34,7 @@ def parse_simple_yaml(path):
 
 def main():
     jobs = sorted(Path("jobs").glob("*.yaml")) + sorted(
-        Path("jobs/avc").glob("*.yaml"))
+        Path("jobs/legacy").glob("*.yaml"))
     assert jobs, "no jobs/*.yaml found"
     errors = []
     for job in jobs:

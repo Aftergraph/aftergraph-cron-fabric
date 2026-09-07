@@ -26,10 +26,10 @@ tokens, or banners. Canonical references:
 ## Naming compliance
 
 - No new AVC-branded product, package, UI string, or document.
-- Known exception pending owner decision: `jobs/avc/ag-avc-noise-gate.yaml`
-  still uses the legacy AVC profile name for Hermes execution ownership.
-  Function is unchanged; user-visible naming must migrate before this is
-  called brand-complete.
+- Resolved: the legacy noise gate lives at
+  `jobs/legacy/ag-legacy-noise-gate.yaml`. Only `owner_profile: avc`
+  remains, as runtime routing truth for the Hermes session that must
+  create it - not as product naming.
 
 ## Evidence boundary
 

@@ -28,12 +28,12 @@ def desired_jobs():
                     for l in text.splitlines() if l.startswith("name:"))
         digest = hashlib.sha256(text.encode()).hexdigest()[:12]
         jobs[name] = {"file": str(path.name), "config_hash": digest}
-    for path in sorted((ROOT / "jobs" / "avc").glob("*.yaml")):
+    for path in sorted((ROOT / "jobs" / "legacy").glob("*.yaml")):
         text = path.read_text(encoding="utf-8")
         name = next(l.split(":", 1)[1].partition("#")[0].strip()
                     for l in text.splitlines() if l.startswith("name:"))
         digest = hashlib.sha256(text.encode()).hexdigest()[:12]
-        jobs[name] = {"file": f"avc/{path.name}", "config_hash": digest}
+        jobs[name] = {"file": f"legacy/{path.name}", "config_hash": digest}
     return jobs
 
 

@@ -24,12 +24,12 @@
   http_observation | repository_state | cron_run | synthetic_canary.
   Commit findings still require exact sha. Tested (3 new checks).
 - #4 counts -> honest: 9 schedules / 7 concerns (7 core schedules,
-  1 temporary rule inside sentinel-release, 1 AVC-local). No creative
+  1 temporary rule inside sentinel-release, 1 legacy-local). No creative
   accounting.
 - #5 dedupe ownership -> event_store = authoritative event lifecycle +
   delivery dedupe. monitor/wake = cost gate only. continuity = reasoning
   context only, kept ONLY on deep audits (removed from claim-watch,
-  vault-watch, sentinel-release, avc-noise-gate).
+  vault-watch, sentinel-release, legacy-noise-gate).
 - #6 expires lifecycle -> reconcile.py plan() takes expired set:
   desired_state retired -> reconciler pauses/removes live job + emits
   receipt. Adopted your simpler model: ag-sentinel-release is permanent
@@ -81,8 +81,8 @@ DECISION carries decision_id; replies are thread follow-ups
 
 Core (7 schedules): runtime-paritet, wi-contract, governance-drift,
 claim-watch + research-evidence (pair), vault-watch + vault-freshness
-(pair), sentinel-release (permanent + 1 temporary rule). AVC-local (1):
-jobs/avc/ag-avc-noise-gate. Infra (1): ag-fabric-canary (monthly,
+(pair), sentinel-release (permanent + 1 temporary rule). Legacy-local (1):
+jobs/legacy/ag-legacy-noise-gate. Infra (1): ag-fabric-canary (monthly,
 no_agent).
 
 ## 6. Interfaces (per jobs/*.yaml)
