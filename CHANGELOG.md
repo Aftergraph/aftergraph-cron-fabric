@@ -9,6 +9,11 @@
 - Brand naming compliance: avc noise gate renamed to
   jobs/legacy/ag-legacy-noise-gate (owner_profile stays runtime truth).
 
+### Fixed
+- Ponytail pass: deleted process-local Semaphore (xproc suite is the
+  proof), dead reconciler --apply; added wired --record receipt path;
+  hoisted duplicated desired_jobs scans. Net -40 lines.
+
 ## [0.1.0] - 2026-09-08
 
 ### Added

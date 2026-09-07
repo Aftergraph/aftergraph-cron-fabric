@@ -6,7 +6,9 @@
   Retry-After respect, exponential backoff with jitter (helpers).
 """
 import random
+import sqlite3
 import time
+import uuid
 from pathlib import Path
 
 
@@ -56,44 +58,12 @@ def backoff(attempt, base=5.0, cap=120.0):
     return min(cap, base * (2 ** attempt)) + random.uniform(0, 1.0)
 
 
-class Semaphore:
-    """Process-LOCAL cap (single process only). Kept for in-process use.
-
-    For the cross-process GH budget use CrossProcessSemaphore below:
-    GH_CONCURRENCY_LIMIT MUST hold across all fabric processes.
-    """
-
-    def __init__(self, limit=3):
-        self.limit = limit
-        self.held = 0
-
-    def acquire(self):
-        if self.held >= self.limit:
-            raise SensorDegraded("GH worker budget exhausted (3/3)")
-        self.held += 1
-
-    def release(self):
-        self.held = max(0, self.held - 1)
-
-    def __enter__(self):
-        self.acquire()
-        return self
-
-    def __exit__(self, *exc):
-        self.release()
-        return False
-
-
 class CrossProcessSemaphore:
     """Cross-process GH budget (finding #2 fix): SQLite leases, one row
     per holder, stale leases expire via ttl. Works across independent
     cron processes on one host (BEGIN IMMEDIATE serializes writers)."""
 
     def __init__(self, path="state/semaphore.sqlite", limit=3, ttl=300.0):
-        import sqlite3
-        import uuid
-        self._sqlite3 = sqlite3
-        self._uuid = uuid
         self.path = path
         self.limit = limit
         self.ttl = ttl
@@ -106,8 +76,8 @@ class CrossProcessSemaphore:
         db.close()
 
     def _db(self):
-        return self._sqlite3.connect(self.path, timeout=10.0,
-                                     isolation_level=None)
+        return sqlite3.connect(self.path, timeout=10.0,
+                               isolation_level=None)
 
     def acquire(self):
         db = self._db()
@@ -119,7 +89,7 @@ class CrossProcessSemaphore:
             if count >= self.limit:
                 db.execute("ROLLBACK")
                 raise SensorDegraded("GH worker budget exhausted (3/3)")
-            self.lease = self._uuid.uuid4().hex
+            self.lease = uuid.uuid4().hex
             db.execute("INSERT INTO leases (id, ts) VALUES (?, ?)",
                        (self.lease, now))
             db.execute("COMMIT")

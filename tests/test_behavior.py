@@ -8,8 +8,8 @@ ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "scripts"))
 
 from event_store import EventStore
-from sensor_guard import (EVIDENCE_TYPES, Semaphore, SensorDegraded,
-                          backoff, classify_http, require_evidence,
+from sensor_guard import (EVIDENCE_TYPES, SensorDegraded, backoff,
+                          classify_http, require_evidence,
                           require_typed_evidence)
 
 passed = 0
@@ -106,16 +106,6 @@ r = subprocess.run(["bash", "-c", "echo boom >&2; exit 1"],
                    capture_output=True, text=True)
 check("crash visible", r.returncode != 0 and "boom" in r.stderr)
 
-# semaphore: 4th concurrent worker refused (process-local)
-sem = Semaphore(3)
-sem.acquire(); sem.acquire(); sem.acquire()
-try:
-    sem.acquire()
-    check("semaphore caps at 3", False)
-except SensorDegraded:
-    check("semaphore caps at 3", True)
-sem.release()
-
 # backoff grows with jitter bound
 b0, b3 = backoff(0, base=5.0, cap=120.0), backoff(3, base=5.0, cap=120.0)
 check("backoff grows", 5.0 <= b0 <= 6.0 and b3 > b0)
@@ -141,5 +131,20 @@ for _p in _xprocs:
 _got = sorted(Path(_out).read_text(encoding="utf-8").split())
 check("xproc: 3 holders admitted", _got.count("acquired") == 3)
 check("xproc: contender refused", _got.count("refused") == 1)
+
+# reconciler --record writes a receipt with the live config hash
+import json as _json
+_rec = subprocess.run([sys.executable, str(ROOT / "scripts" / "reconcile.py"),
+                       "--record", "ag-wi-contract", "test-job-id"],
+                      capture_output=True, text=True, cwd=str(ROOT))
+_receipt = ROOT / "deploy" / "receipts" / "ag-wi-contract.json"
+_data = _json.loads(_receipt.read_text(encoding="utf-8"))
+check("record writes receipt", _rec.returncode == 0
+      and _data["job"] == "ag-wi-contract"
+      and _data["job_id"] == "test-job-id"
+      and len(_data["config_hash"]) == 12)
+_receipt.unlink()
+_receipt.parent.rmdir()
+_receipt.parent.parent.rmdir()
 
 print(f"\nBEHAVIOR-OK: {passed} checks")
