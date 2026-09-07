@@ -65,6 +65,10 @@ with a deployment receipt.
   run ended mid-investigation with no recorded fingerprint. Tightened
   4-endpoint prompt already live for re-proof. Re-paused.
   RE-PROOF deleg_f55b8d62 in flight (tightened prompt).
+  RE-PROOF DONE ok/342s - same confirmation: clean table of all four
+  blob SHAs, baseline 22040d202e0e2056 recorded OPEN in
+  state/events.sqlite (verified on disk with full evidence string),
+  read-back verified, zero dirt. 956s -> 342s. Re-paused.
 - ag-wi-contract f33d3564cbb0 (every 120m), proof run deleg_7b649874:
   DONE ok/944s. Same pattern: agent worked (downloaded wi frontend
   client to Temp - good location, but via curl instead of gh-read.sh:
