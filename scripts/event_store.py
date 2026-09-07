@@ -1,6 +1,6 @@
 """Event-state dedupe primitive (ChatGPT finding #1 fix).
 
-Durable event state machine — own SQLite under state/, never Hermes'
+Durable event state machine - own SQLite under state/, never Hermes'
 internal state.db. One row per event_key; fingerprint decides silence.
 
   HEALTHY -> OPEN (new event)      emit at job severity/disposition
