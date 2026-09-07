@@ -64,7 +64,12 @@ with a deployment receipt.
   old prompt let it wander (README grep instead of pinned registry.ts),
   run ended mid-investigation with no recorded fingerprint. Tightened
   4-endpoint prompt already live for re-proof. Re-paused.
-- ag-wi-contract f33d3564cbb0 (every 120m), proof run deleg_7b649874
+- ag-wi-contract f33d3564cbb0 (every 120m), proof run deleg_7b649874:
+  DONE ok/944s. Same pattern: agent worked (downloaded wi frontend
+  client to Temp - good location, but via curl instead of gh-read.sh:
+  read-only in spirit, constraint violated in letter), ended
+  mid-investigation with no verdict and no fingerprint. Tightened
+  2-endpoint prompt already live for re-proof. Re-paused.
 - ag-sentinel-release 50159b84a34f (daily 9am), proof run deleg_9482cb79:
   DONE ok/75s but WEAK - agent only reconnoitered local files (cat/ls),
   never called gh-read.sh, never checked pack SHAs or firetest. Lesson:
