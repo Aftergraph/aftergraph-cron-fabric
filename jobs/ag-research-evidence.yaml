@@ -1,0 +1,18 @@
+name: ag-research-evidence
+schedule: every monday 9am
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 7d, p95_max: 10d}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Weekly deep evidence audit (expensive; cheap change detection lives in
+  ag-claim-watch, which triggers this job on change). Verify open claims
+  against CI/bench/receipts via scripts/gh-read.sh (GET only). Report CLAIM-NOT-EQUAL-EVIDENCE with cites
+  via scripts/event_store.py dedupe. Never merge, push, deploy, or read
+  secrets.
+continuity: true
+enabled_toolsets: [terminal]

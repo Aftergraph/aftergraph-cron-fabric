@@ -1,0 +1,20 @@
+name: ag-governance-drift
+schedule: every 6h
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 6h, p95_max: 12h}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Read-only governance drift check. For each entry in
+  contracts/sources.yaml compare the canonical_repo artifact against
+  its mirrors (aie.terminology stays research-track owned by aie -
+  never flag research terms as drift against governance). Use
+  scripts/gh-read.sh (GET only) plus scripts/event_store.py dedupe.
+  Emit notify only on new/changed fingerprint. Never merge, push,
+  deploy, or read secrets.
+continuity: true
+enabled_toolsets: [terminal]

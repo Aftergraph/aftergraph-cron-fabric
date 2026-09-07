@@ -1,0 +1,20 @@
+name: ag-sentinel-release
+schedule: every day at 9am
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 24h, p95_max: 48h}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Sentinel release-integrity monitor (permanent). Two rules:
+  permanent: sentinel pack version pinned in aftergraph.org must match
+  sentinel main RULE_PACK_VERSION (cite both).
+  temporary: Aftergraph/sentinel-firetest must disappear (throwaway
+  live-fire proof, delete after) - report while present, drop this rule
+  (not the job) once the repo is gone. Read-only via scripts/gh-read.sh
+  (GET only), cites, silence otherwise. Never merge, push, deploy,
+  delete branches, or read secrets.
+enabled_toolsets: [terminal]

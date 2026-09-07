@@ -1,0 +1,19 @@
+name: ag-wi-contract
+schedule: every 2h
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 2h, p95_max: 4h}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Read-only WI contract check. Compare wi.observation owner
+  (Aftergraph/wi-backend API schema) against its mirror
+  (Aftergraph/wi-frontend expectations) per contracts/sources.yaml.
+  Use scripts/gh-read.sh (GET only) plus scripts/event_store.py dedupe.
+  Emit notify only on new/changed fingerprint. Never merge, push,
+  deploy, or read secrets.
+continuity: true
+enabled_toolsets: [terminal]

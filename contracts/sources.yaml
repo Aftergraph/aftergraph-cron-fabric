@@ -1,0 +1,33 @@
+# Canonical source map (ChatGPT finding #3 fix).
+# Every drift job compares against ONE artifact owner, never a global
+# "canonical repo". aie.terminology stays research-track owned by aie.
+contracts:
+  - id: mission.lifecycle
+    canonical_repo: Aftergraph/runtime
+    artifact: lifecycle version registry
+    mirrors: [Aftergraph/docs]
+  - id: execution.budget
+    canonical_repo: Aftergraph/works-execution
+    artifact: WorkGraph budget schema
+    mirrors: [Aftergraph/docs]
+  - id: authority.delegation
+    canonical_repo: Aftergraph/trust-gateway
+    artifact: delegation/policy schema
+    mirrors: [Aftergraph/docs]
+  - id: aie.terminology
+    canonical_repo: Aftergraph/aie
+    artifact: AIE term definitions
+    status: research
+    mirrors: []
+  - id: governance.terms
+    canonical_repo: Aftergraph/after-graph-governance
+    artifact: cross-repo terminology + contracts
+    mirrors: [Aftergraph/docs]
+  - id: wi.observation
+    canonical_repo: Aftergraph/wi-backend
+    artifact: observation/workitem API schema
+    mirrors: [Aftergraph/wi-frontend]
+  - id: studio.surface
+    canonical_repo: Aftergraph/studio
+    artifact: mission status surface contract
+    mirrors: []

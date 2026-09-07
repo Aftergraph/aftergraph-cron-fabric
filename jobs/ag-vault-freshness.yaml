@@ -1,0 +1,17 @@
+name: ag-vault-freshness
+schedule: every monday 9am
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 7d, p95_max: 10d}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Weekly deep freshness audit (woken on-change by ag-vault-watch).
+  Dead skills, stale pins, immature repos - cites required, silence
+  otherwise, via scripts/gh-read.sh (GET only). Never merge, push,
+  deploy, or read secrets.
+continuity: true
+enabled_toolsets: [terminal]

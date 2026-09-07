@@ -1,0 +1,11 @@
+__pycache__/
+*.pyc
+state/*.sqlite
+state/*.sqlite-journal
+state/*.sqlite-wal
+state/*.sqlite-shm
+.env
+.DS_Store
+Thumbs.db
+*.log
+.venv/

@@ -1,0 +1,21 @@
+# Owned by AVC profile - delivered to Aftergraph Ops (finding #11 fix).
+# Implementation lives here so Aftergraph core stays platform-clean;
+# remove this file when AVC noise is gone. Create via cronjob in the
+# AVC profile session, deliver target Aftergraph Ops topic.
+name: ag-avc-noise-gate
+owner_profile: avc
+schedule: every day at 9am
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 24h, p95_max: 48h}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Read-only noise gate. List open PRs in autonomous-venture-company
+  via scripts/gh-read.sh (GET only), filter out Dependabot bumps; report only non-Dependabot PRs and any
+  failing checks on main. Silence otherwise. Never merge, push, deploy,
+  approve PRs, or read secrets.
+enabled_toolsets: [terminal]

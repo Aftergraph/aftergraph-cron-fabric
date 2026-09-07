@@ -1,0 +1,16 @@
+name: ag-vault-watch
+schedule: every 6h
+deliver: telegram-ops-topic
+severity: info
+allowed_dispositions: [store, digest]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 6h, p95_max: 12h}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Cheap HEAD/pin-change monitor for skills-vault,
+  llm-research-development, docs (gh-read.sh GET only, event_store state).
+  Changes wake ag-vault-freshness deep audit. Never merge, push, deploy,
+  or read secrets.
+enabled_toolsets: [terminal]

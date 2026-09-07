@@ -1,0 +1,18 @@
+name: ag-claim-watch
+schedule: every 6h
+deliver: telegram-ops-topic
+severity: info
+allowed_dispositions: [store, digest]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 6h, p95_max: 12h}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Cheap claim-registry monitor (no LLM analysis). Record claim SHAs and
+  registry heads across intelligence-systems-research, continuum,
+  context-continuity, afm via scripts/gh-read.sh (GET only). Any change
+  wakes ag-research-evidence deep audit; this job itself only stores
+  state via scripts/event_store.py. Never merge, push, deploy, or read
+  secrets.
+enabled_toolsets: [terminal]

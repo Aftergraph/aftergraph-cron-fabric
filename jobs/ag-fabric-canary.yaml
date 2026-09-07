@@ -1,0 +1,14 @@
+name: ag-fabric-canary
+schedule: every month on the 1st at 9am
+deliver: telegram-ops-topic
+severity: info
+allowed_dispositions: [store, digest]
+read_only: true
+mode: no_agent
+job_type: script_only
+detection_slo: {p50_max: 24h, p95_max: 48h}
+rollback: cronjob_manage update job_id pause (list first)
+script: scripts/sensors/canary.py
+# External to the jobs it tests. Injects one synthetic event into the
+# fabric canary namespace, then verifies: exactly one Telegram emission
+# and one RESOLVED lifecycle. Always evidence.type=synthetic_canary.

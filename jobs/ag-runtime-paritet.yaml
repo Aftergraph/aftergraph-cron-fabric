@@ -1,0 +1,20 @@
+name: ag-runtime-paritet
+schedule: every 2h
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: agent
+job_type: constrained_terminal
+detection_slo: {p50_max: 2h, p95_max: 4h}
+rollback: cronjob_manage update job_id pause (list first)
+prompt: |
+  Read-only runtime parity check (Aftergraph org). Compare ONLY these
+  pinned artifact owners from contracts/sources.yaml: mission.lifecycle
+  (Aftergraph/runtime), execution.budget (Aftergraph/works-execution),
+  authority.delegation (Aftergraph/trust-gateway). Use scripts/gh-read.sh
+  (GET only) and record findings via scripts/event_store.py (own state/,
+  never Hermes state.db). Emit notify only on new/changed fingerprint;
+  repeats are SILENCE. Never merge, push, deploy, or read secrets.
+continuity: true
+enabled_toolsets: [terminal]
