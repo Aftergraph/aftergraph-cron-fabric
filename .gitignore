@@ -1,9 +1,8 @@
 __pycache__/
 *.pyc
-state/*.sqlite
-state/*.sqlite-journal
-state/*.sqlite-wal
-state/*.sqlite-shm
+# state/ is runtime scratch (event SQLite, sensor temp). The tree ships
+# no state; code mkdirs what it needs. Never commit scratch.
+state/
 .env
 .DS_Store
 Thumbs.db

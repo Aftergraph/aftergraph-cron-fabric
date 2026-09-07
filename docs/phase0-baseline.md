@@ -68,3 +68,7 @@ with a deployment receipt.
 - All created with deliver=local + workdir=repo root + terminal-only
   toolset, then paused. Paused jobs refuse manual run: proof flow is
   resume -> run -> re-pause on outcome.
+- Lesson 01:29: the runtime proof agent wrote a remote repo tree dump
+  (state/.rt-tree.txt, 435 lines) into the fabric workdir as scratch.
+  Removed + state/ fully ignored. Next prompt revision adds: never
+  write files into the workdir except through event_store state.
