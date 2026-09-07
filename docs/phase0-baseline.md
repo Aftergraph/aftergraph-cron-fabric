@@ -72,6 +72,11 @@ with a deployment receipt.
   mid-investigation with no verdict and no fingerprint. Tightened
   2-endpoint prompt already live for re-proof. Re-paused.
   RE-PROOF deleg_313eb382 in flight (tightened prompt).
+  RE-PROOF DONE ok/141s - HYPOTHESIS CONFIRMED: exact endpoints fix
+  discipline. Agent followed both steps via gh-read.sh, cited both blob
+  SHAs (boundary 65803732, openapi f5ca4c81), recorded fingerprint
+  80e462a53a58100c as OPEN in state/events.sqlite (verified on disk:
+  repeat runs will SILENCE). 944s -> 141s. Zero dirt. Re-paused.
 - ag-sentinel-release 50159b84a34f (daily 9am), proof run deleg_9482cb79:
   DONE ok/75s but WEAK - agent only reconnoitered local files (cat/ls),
   never called gh-read.sh, never checked pack SHAs or firetest. Lesson:
