@@ -91,6 +91,10 @@ with a deployment receipt.
   already-being-fired flag. Job parked paused (planned state). If the
   stuck run lands, assess then; else the 09:00 scheduled tick (or a
   fresh resume+run) is the backup proof.
+  REROUTE 01:55: manual-run flag still stuck after pause+resume cycle.
+  Decision: leave sentinel ENABLED until the 09:00 scheduled tick and
+  use THAT as the re-proof vehicle (read-only, local delivery, zero
+  risk) instead of fighting the stuck manual flag. Re-pause after.
 - All created with deliver=local + workdir=repo root + terminal-only
   toolset, then paused. Paused jobs refuse manual run: proof flow is
   resume -> run -> re-pause on outcome.
