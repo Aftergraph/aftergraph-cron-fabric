@@ -5,14 +5,19 @@ contracts:
   - id: mission.lifecycle
     canonical_repo: Aftergraph/runtime
     artifact: lifecycle version registry
+    path: packages/invariants/src/registry.ts
     mirrors: [Aftergraph/docs]
   - id: execution.budget
     canonical_repo: Aftergraph/works-execution
     artifact: WorkGraph budget schema
+    path: contracts/schemas/kernel.budget.schema.json
     mirrors: [Aftergraph/docs]
   - id: authority.delegation
     canonical_repo: Aftergraph/trust-gateway
-    artifact: delegation/policy schema
+    artifact: delegation/policy chain
+    paths:
+      - src/gateway/delegation-chain.js
+      - src/gateway/policy.js
     mirrors: [Aftergraph/docs]
   - id: aie.terminology
     canonical_repo: Aftergraph/aie

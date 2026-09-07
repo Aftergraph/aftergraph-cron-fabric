@@ -9,12 +9,17 @@ job_type: constrained_terminal
 detection_slo: {p50_max: 2h, p95_max: 4h}
 rollback: cronjob_manage update job_id pause (list first)
 prompt: |
-  Read-only runtime parity check (Aftergraph org). Compare ONLY these
-  pinned artifact owners from contracts/sources.yaml: mission.lifecycle
-  (Aftergraph/runtime), execution.budget (Aftergraph/works-execution),
-  authority.delegation (Aftergraph/trust-gateway). Use scripts/gh-read.sh
-  (GET only) and record findings via scripts/event_store.py (own state/,
-  never Hermes state.db). Emit notify only on new/changed fingerprint;
-  repeats are SILENCE. Never merge, push, deploy, or read secrets.
+  Read-only runtime parity sensor (Aftergraph org). HARD RULES: never
+  merge, push, deploy, approve, delete, write to any repo, or read
+  secrets. Terminal ONLY for these exact commands (GH =
+  scripts/gh-read.sh, GET-only, exits 3 otherwise). Fingerprint = the
+  four blob SHAs below, key runtime|paritet in scripts/event_store.py
+  (own state/ only):
+  1. bash GH repos/Aftergraph/runtime/contents/packages/invariants/src/registry.ts --jq '{sha: .sha}'
+  2. bash GH repos/Aftergraph/works-execution/contents/contracts/schemas/kernel.budget.schema.json --jq '{sha: .sha}'
+  3. bash GH repos/Aftergraph/trust-gateway/contents/src/gateway/delegation-chain.js --jq '{sha: .sha}'
+  4. bash GH repos/Aftergraph/trust-gateway/contents/src/gateway/policy.js --jq '{sha: .sha}'
+  Changed fingerprint = EMIT/UPDATE with typed evidence citing SHAs;
+  same fingerprint = output nothing (silence). One concise notify max.
 continuity: true
 enabled_toolsets: [terminal]
