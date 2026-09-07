@@ -1,0 +1,47 @@
+# Phase 0 baseline - live cron inventory (frozen 2026-09-08 01:12 CEST)
+
+Read-only listing, no mutations performed. 14 live jobs on the avc profile.
+
+## Inventory
+
+| live job | schedule | state | last | deliver |
+|---|---|---|---|---|
+| weekly-brief | Mon 9am | scheduled | error | telegram |
+| avc-daily-brief | daily 8am | paused | error | telegram |
+| avc-ci-local-poll | every 5m | scheduled | ok | telegram |
+| avc-dev-loop | every 45m | paused | ok | telegram |
+| skills-vault-sync | Mon 9am | scheduled | error | local |
+| skill-usage-report | monthly | scheduled | never ran | local |
+| dependabot-automerge | daily 9am | scheduled | ok | local |
+| gateway-watchdog | every 5m | scheduled | ok | local |
+| card-triage | daily 7am | scheduled | ok | local |
+| control-watch | every 10m | scheduled | ok | local |
+| aftergraph-site-monitor | every 30m | paused | ok | local |
+| acc-overnight-watch | hourly | scheduled | ok | telegram |
+| acc-morning-digest | daily 7am | scheduled | ok | telegram |
+| cron-incident-digest | every 12h | scheduled | never ran | local |
+
+## Read
+
+- 3 error-state (weekly-brief, avc-daily-brief, skills-vault-sync): the
+  exact noise the fabric replaces. avc-daily-brief already paused.
+- 3 high-frequency pollers (5m/5m/10m) all delivering ok: volume baseline
+  for the "before" side of the shadow comparison.
+- acc-overnight-watch is healthy and hourly: confirmed as shadow
+  comparator, not oracle.
+- aftergraph-site-monitor paused since 2026-09-07 13:58: reason unknown,
+  flagged for owner (possible Phase 1 overlap with runtime-paritet).
+
+## Fabric mapping (dry-run)
+
+`python3 scripts/reconcile.py` against an empty live set plans 10 creates
+(one per jobs/*.yaml). Against the real live set, names do not collide
+(fabric names are ag-*-prefixed), so Phase 1 creates are purely additive;
+no live job is touched by the reconciler until an explicit retire decision
+with a deployment receipt.
+
+## Next (needs owner)
+
+- Phase 0 remaining: Telegram Ops topic id + read-only token scoping.
+- Phase 1 gate: SHIP verdict on the v0.3 spec, then create the 3 Phase 1
+  jobs paused + manual run + 7-day shadow vs acc-overnight-watch.
