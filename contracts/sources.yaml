@@ -30,7 +30,10 @@ contracts:
     mirrors: [Aftergraph/docs]
   - id: wi.observation
     canonical_repo: Aftergraph/wi-backend
-    artifact: observation/workitem API schema
+    artifact: observation boundary contract + API schema
+    paths:
+      - contracts/work-intelligence-boundary/1.0.json
+      - openapi.json
     mirrors: [Aftergraph/wi-frontend]
   - id: studio.surface
     canonical_repo: Aftergraph/studio
