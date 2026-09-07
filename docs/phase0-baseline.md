@@ -58,7 +58,12 @@ with a deployment receipt.
 
 ## Phase 1 jobs (live, paused, local delivery)
 
-- ag-runtime-paritet 97323ff8ddbb (every 120m), proof run deleg_abd0780d
+- ag-runtime-paritet 97323ff8ddbb (every 120m), proof run deleg_abd0780d:
+  DONE ok/956s. Plumbing proven: agent used gh-read.sh correctly
+  (GET-only, quoted), zero writes, zero dirt. Discipline unproven:
+  old prompt let it wander (README grep instead of pinned registry.ts),
+  run ended mid-investigation with no recorded fingerprint. Tightened
+  4-endpoint prompt already live for re-proof. Re-paused.
 - ag-wi-contract f33d3564cbb0 (every 120m), proof run deleg_7b649874
 - ag-sentinel-release 50159b84a34f (daily 9am), proof run deleg_9482cb79:
   DONE ok/75s but WEAK - agent only reconnoitered local files (cat/ls),
