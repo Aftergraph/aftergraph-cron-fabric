@@ -56,7 +56,7 @@
   external to tested jobs; inject -> one emission -> auto-resolve ->
   exactly-one-Telegram + one RESOLVED; always
   evidence.type=synthetic_canary. Implemented + passing.
-- Open Q4 (pack-skew home): jobs/ag-sentinel-release.yaml in fabric;
+- Open Q4 (release-watch home): jobs/ag-sentinel-release.yaml in fabric;
   contracts/sources.yaml points at canonical artifacts.
 
 ## 1. Decision
@@ -81,7 +81,7 @@ DECISION carries decision_id; replies are thread follow-ups
 
 Core (7 schedules): runtime-paritet, wi-contract, governance-drift,
 claim-watch + research-evidence (pair), vault-watch + vault-freshness
-(pair), sentinel-release (permanent + 1 temporary rule). Legacy-local (1):
+(pair), sentinel-release (version-change watch + 1 temporary rule). Legacy-local (1):
 jobs/legacy/ag-legacy-noise-gate. Infra (1): ag-fabric-canary (monthly,
 no_agent).
 

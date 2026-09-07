@@ -9,12 +9,18 @@ job_type: constrained_terminal
 detection_slo: {p50_max: 24h, p95_max: 48h}
 rollback: cronjob_manage update job_id pause (list first)
 prompt: |
-  Sentinel release-integrity monitor (permanent). Two rules:
-  permanent: sentinel pack version pinned in aftergraph.org must match
-  sentinel main RULE_PACK_VERSION (cite both).
-  temporary: Aftergraph/sentinel-firetest must disappear (throwaway
-  live-fire proof, delete after) - report while present, drop this rule
-  (not the job) once the repo is gone. Read-only via scripts/gh-read.sh
-  (GET only), cites, silence otherwise. Never merge, push, deploy,
-  delete branches, or read secrets.
+  Sentinel release sensor (permanent version-change watch + 1 temporary
+  rule). HARD RULES: never merge, push, deploy, approve, delete
+  branches, write to any repo, or read secrets. Terminal ONLY for these
+  exact commands (GH = scripts/gh-read.sh, GET-only, exits 3 otherwise):
+  1. bash GH repos/Aftergraph/sentinel/contents/lib/rulepack.js
+     --jq '{sha: .sha, content: .content}'; decode content, read
+     RULE_PACK_VERSION. Cite the blob sha.
+  2. bash GH repos/Aftergraph/sentinel-firetest --jq '{name: .name}'.
+     Exists = temporary rule active, report while present. Gone = emit
+     one RESOLVED, then drop the rule (never report again).
+  3. Check key sentinel|release in scripts/event_store.py (own state/
+     only): changed version or firetest state = EMIT/UPDATE with typed
+     evidence; same fingerprint = output nothing (silence).
+  Output one concise notify with cites, or nothing.
 enabled_toolsets: [terminal]

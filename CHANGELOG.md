@@ -13,6 +13,11 @@
 - Ponytail pass: deleted process-local Semaphore (xproc suite is the
   proof), dead reconciler --apply; added wired --record receipt path;
   hoisted duplicated desired_jobs scans. Net -40 lines.
+- Honesty fix: no pack pin exists in aftergraph.org site sources, so
+  sentinel-release permanent rule is a version-change watch (live
+  RULE_PACK_VERSION 1.7.0 at check time), not cross-repo pin matching.
+  Prompts rewritten as numbered steps with exact gh-read endpoints
+  after first proof showed agents reconnoiter instead of sense.
 
 ## [0.1.0] - 2026-09-08
 

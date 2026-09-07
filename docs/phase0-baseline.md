@@ -60,7 +60,11 @@ with a deployment receipt.
 
 - ag-runtime-paritet 97323ff8ddbb (every 120m), proof run deleg_abd0780d
 - ag-wi-contract f33d3564cbb0 (every 120m), proof run deleg_7b649874
-- ag-sentinel-release 50159b84a34f (daily 9am), proof run deleg_9482cb79
+- ag-sentinel-release 50159b84a34f (daily 9am), proof run deleg_9482cb79:
+  DONE ok/75s but WEAK - agent only reconnoitered local files (cat/ls),
+  never called gh-read.sh, never checked pack SHAs or firetest. Lesson:
+  prompts need numbered steps with exact endpoints, not just rules.
+  Re-paused. Prompt tightening required before re-proof.
 - All created with deliver=local + workdir=repo root + terminal-only
   toolset, then paused. Paused jobs refuse manual run: proof flow is
   resume -> run -> re-pause on outcome.
