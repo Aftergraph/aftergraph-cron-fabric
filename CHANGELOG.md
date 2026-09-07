@@ -4,6 +4,8 @@
 
 ### Added
 - Initial 7-job fabric + review spec.
+- Aftergraph brand setup: docs/brand.md, README hero/links, brand.identity
+  source entry; GitHub About wired to aftergraph.org.
 
 ## [0.1.0] - 2026-09-08
 

@@ -31,3 +31,7 @@ contracts:
     canonical_repo: Aftergraph/studio
     artifact: mission status surface contract
     mirrors: []
+  - id: brand.identity
+    canonical_repo: Aftergraph/brand
+    artifact: Brand OS manifest + usage rules + SVG masters
+    mirrors: []
