@@ -45,3 +45,13 @@ with a deployment receipt.
 - Phase 0 remaining: Telegram Ops topic id + read-only token scoping.
 - Phase 1 gate: SHIP verdict on the v0.3 spec, then create the 3 Phase 1
   jobs paused + manual run + 7-day shadow vs acc-overnight-watch.
+
+## Deployment record (live, night session)
+
+- Sensor copy: repo scripts/sensors/canary.py ->
+  avc-profile scripts/ag-fabric-canary.py (re-deploy on every change).
+- Live job ag-fabric-canary, job_id 79c921bb5463, schedule 0 9 1 * *,
+  no_agent, workdir = repo root, deliver = local (D7 deviation).
+- Scheduler grammar note: natural monthly schedules rejected, cron
+  expression required. jobs/*.yaml schedule field documents intent;
+  reconcile maps intent -> deployable cron expression at creation.

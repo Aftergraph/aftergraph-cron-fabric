@@ -57,6 +57,30 @@ hoisted to top level.
 observed incident demands it and widening the contract without evidence
 is speculation. Left as-is; revisit on first real 4xx event.
 
+## D7. Routing around all three blocks (night-session decision)
+
+Stall is worse than a documented deviation. Rulings:
+
+- SHIP: no external reviewer exists inside the loop. Substitute is
+  adversarial self-review (D1-D6 + ponytail) PLUS live proof runs with
+  local delivery. External review is deferred, not skipped - the v0.3
+  spec still awaits ChatGPT, and any CONDITIONAL finding retro-applies
+  to the live jobs.
+- Ops topic: proof phase uses deliver=local. Zero Telegram surface
+  until the owner supplies telegram:<chat>:<thread>. No DM reuse.
+- Token scoping: code boundary (gh-read exit 3, validator, prompt
+  wording) is the active enforcement; credential scoping stays
+  owner-side and blocks nothing because proof jobs cannot write by
+  construction.
+- Scheduler reality, learned tonight: no_agent scripts must live in
+  the profile scripts dir (copies, not references), take no env, and
+  take no cwd for granted. canary.py now resolves
+  env -> in-tree proof -> workdir proof -> loud fail. The sensor copy
+  is a build artifact of the repo (source of truth stays in git);
+  copies are re-deployed on every sensor change.
+- Canary steady state is ENABLED (monthly, local, no LLM): pausing it
+  would disable the very tripwire that watches the fabric.
+
 ## Ponytail score, this pass
 
 net: -40 lines possible, all cut (Semaphore class, import
