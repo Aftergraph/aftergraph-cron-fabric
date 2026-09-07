@@ -2,12 +2,16 @@
 verifies exactly one emission + one RESOLVED lifecycle. Nonzero exit
 or unexpected counts = monitor failure (visible)."""
 import sys
+from pathlib import Path
 
-sys.path.insert(0, "scripts")
+# Anchored to the repo, never to the scheduler's cwd: a deployed sensor
+# must run identically no matter where the tick fires it from.
+REPO = Path(__file__).resolve().parent.parent.parent
+sys.path.insert(0, str(REPO / "scripts"))
 from event_store import EventStore
 from sensor_guard import require_typed_evidence
 
-store = EventStore("state/canary.sqlite")
+store = EventStore(str(REPO / "state" / "canary.sqlite"))
 KEY = "canary|monthly|synthetic"
 EV = {"type": "synthetic_canary", "ref": "canary/monthly",
       "observed_at": "run", "repo": None, "sha": None}
