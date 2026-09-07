@@ -14,7 +14,8 @@ prompt: |
   secrets. Terminal ONLY for these exact commands (GH =
   scripts/gh-read.sh, GET-only, exits 3 otherwise). Fingerprint = the
   four blob SHAs below, key runtime|paritet in scripts/event_store.py
-  (own state/ only):
+  (own state/ only). Never write files into the workdir except through
+  event_store state:
   1. bash GH repos/Aftergraph/runtime/contents/packages/invariants/src/registry.ts --jq '{sha: .sha}'
   2. bash GH repos/Aftergraph/works-execution/contents/contracts/schemas/kernel.budget.schema.json --jq '{sha: .sha}'
   3. bash GH repos/Aftergraph/trust-gateway/contents/src/gateway/delegation-chain.js --jq '{sha: .sha}'
