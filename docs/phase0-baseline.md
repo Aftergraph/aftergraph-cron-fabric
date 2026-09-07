@@ -86,6 +86,11 @@ with a deployment receipt.
   never called gh-read.sh, never checked pack SHAs or firetest. Lesson:
   prompts need numbered steps with exact endpoints, not just rules.
   Re-paused. Prompt tightening required before re-proof.
+  RE-PROOF STUCK: manual run fired ~01:30 but 22+ min with no output
+  file and no status update; pause+resume does not clear the
+  already-being-fired flag. Job parked paused (planned state). If the
+  stuck run lands, assess then; else the 09:00 scheduled tick (or a
+  fresh resume+run) is the backup proof.
 - All created with deliver=local + workdir=repo root + terminal-only
   toolset, then paused. Paused jobs refuse manual run: proof flow is
   resume -> run -> re-pause on outcome.
