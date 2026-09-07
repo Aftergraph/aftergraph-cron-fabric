@@ -59,8 +59,8 @@ with a deployment receipt.
 ## Phase 1 jobs (live, paused, local delivery)
 
 - ag-runtime-paritet 97323ff8ddbb (every 120m), proof run deleg_abd0780d
-- ag-wi-contract f33d3564cbb0 (every 120m), proof pending
-- ag-sentinel-release 50159b84a34f (daily 9am), proof pending
+- ag-wi-contract f33d3564cbb0 (every 120m), proof run deleg_7b649874
+- ag-sentinel-release 50159b84a34f (daily 9am), proof run deleg_9482cb79
 - All created with deliver=local + workdir=repo root + terminal-only
   toolset, then paused. Paused jobs refuse manual run: proof flow is
   resume -> run -> re-pause on outcome.
