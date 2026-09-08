@@ -21,12 +21,14 @@ mechanically with one command.
 | 5 | Audit log | event_store.py: log_audit + test_behavior: "record writes receipt" | python3 tests/test_behavior.py |
 | 7 | CI runs validate + tests + canary | CI workflow (.github/workflows/ci.yml) | gh api .../check-runs |
 | 8 | validate.py validates 10 YAML files | validate.py output | python3 scripts/validate.py jobs |
-| 8 | test_behavior.py runs 41 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
+| 8 | test_behavior.py runs 55 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
 | 8 | Canary self-test | canary.py exit 0 | python3 scripts/sensors/canary.py |
 | 8 | Canary --on-demand pre-deploy probe | canary --on-demand: EMIT -> OK (non-destructive) | python3 scripts/sensors/canary.py --on-demand |
 | 9 | Duplicate rate measurable | verify_slo.py check_duplicate_rate | python3 scripts/verify_slo.py --jobs-dir jobs --events-db state/events.sqlite --canary-db state/canary.sqlite --executions-db EXEC_DB --jobs-json JOBS_JSON |
 | 9 | Evidence completeness measurable | verify_slo.py check_evidence_completeness | (same command) |
-| 9 | Canary emissions complete | verify_slo.py check_canary | (same command) |
+| 9 | Canary emissions complete + receipts reconciled | verify_slo.py check_canary + check_canary_receipts | python3 scripts/verify_slo.py --jobs-dir jobs --events-db state/events.sqlite --canary-db state/canary.sqlite --executions-db EXEC_DB --jobs-json JOBS_JSON --receipts-dir deploy/receipts --baseline state/baseline.json |
+| 9 | Baseline volume vs frozen reference | verify_slo.py check_baseline_volume (missing/invalid baseline = error) | (same command) |
+| 9 | Fail-closed sources/mappings/state | verify_slo.py check_sources + unmapped-job error + absent-state error | (same command) |
 | 9 | Per-job p50/p95 vs detection_slo | verify_slo.py check_slos + test_behavior: "SLO-VERIFIED when runs meet" + "VIOLATION when runs exceed" | python3 tests/test_behavior.py |
 | 9 | Scheduled tick verification | verify_tick.py (next_run_at advanced + non-manual execution) | python3 scripts/verify_tick.py --jobs-json JOBS_JSON --executions-db EXEC_DB |
 | 10.1 | SQLite chosen over file-lock | test_behavior: xproc semaphore test (3 holders + 1 contender) | python3 tests/test_behavior.py |

@@ -40,3 +40,20 @@ Exact numbered endpoints in the prompt fix agent discipline: wi 944s -> 141s, ru
 ## Standing
 
 All Phase 1 jobs deliver=local, terminal-only, paused except sentinel (enabled until 09:00 tick). Gates green at freeze: VALIDATE-OK 10 jobs, BEHAVIOR-OK 22 checks.
+
+## POST-FREEZE APPENDIX 2 (2026-09-08, Codex CONDITIONAL findings closed)
+
+- Correction: the "BEHAVIOR-OK 22 checks" line above is stale. The suite
+  grew to 41 checks (SLO paths) and now 50 checks (fail-closed verify_slo
+  + canary receipts + baseline volume). Frozen lines are never rewritten;
+  this appendix is the current truth. Verify: python3 tests/test_behavior.py
+- verify_slo.py now fails closed on unknown sources, unmapped SLO jobs,
+  absent state, malformed receipts, uncovered unresolved emissions, and
+  missing/invalid baselines. Exit 2 message no longer claims PASS.
+- Canary writes immutable per-run receipts (emission/delivery/resolution)
+  under deploy/receipts/ (git-ignored machine artifacts).
+- "False INCIDENT 0" removed from CHATGPT-REVIEW-SPEC.md section 9: no
+  incident tier exists in the fabric (max severity warning/digest).
+  Reintroduce only with a real tier + machine check.
+- SHIP still requires the 09-09 09:00 scheduled tick + fresh exact-HEAD
+  evidence run. Nothing in this appendix declares completion.

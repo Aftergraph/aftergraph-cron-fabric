@@ -306,6 +306,12 @@ _evdb = _slo_dir / "events.sqlite"
 _cadb = _slo_dir / "canary.sqlite"
 _ecdb = _slo_dir / "executions.db"
 _jobjson = _slo_dir / "jobs.json"
+_rcdir = _slo_dir / "receipts"
+_rcdir.mkdir(exist_ok=True)
+_base_ok = _slo_dir / "baseline-ok.json"
+_base_ok.write_text('{"frozen_at": "2026-09-08T00:00:00+00:00", '
+                    '"window_days": 7, "max_daily_emissions": 100}',
+                    encoding="utf-8")
 _db1 = _slo_dir / "db1.sqlite"
 _db2 = _slo_dir / "db2.sqlite"
 
@@ -338,11 +344,13 @@ _mk_empty_exec(_ecdb)
 _r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
               "--jobs-dir", str(ROOT / "jobs"),
               "--events-db", str(_evdb), "--canary-db", str(_cadb),
-              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson),
+              "--receipts-dir", str(_rcdir), "--baseline", str(_base_ok)],
              capture_output=True, text=True, cwd=str(ROOT))
-check("slo verify PASSes clean state (SLO pending, not violated)",
+check("slo verify INSUFFICIENT-DATA on clean state (never claims PASS)",
       _r.returncode == 2
-      and "PASS (checkable metrics)" in _r.stdout)
+      and "INSUFFICIENT-DATA" in _r.stdout
+      and "PASS (checkable" not in _r.stdout)
 
 # duplicate fingerprint -> VIOLATION exit 1
 _mk_evdb(_evdb, [("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=ab"),
@@ -350,7 +358,8 @@ _mk_evdb(_evdb, [("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=ab"),
 _r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
               "--jobs-dir", str(ROOT / "jobs"),
               "--events-db", str(_evdb), "--canary-db", str(_cadb),
-              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson),
+              "--receipts-dir", str(_rcdir), "--baseline", str(_base_ok)],
              capture_output=True, text=True, cwd=str(ROOT))
 check("slo verify FAILs on duplicate fingerprint",
       _r.returncode == 1 and "DUPLICATE" in _r.stdout)
@@ -360,7 +369,8 @@ _mk_evdb(_evdb, [("k1", "fp1", "OPEN", 1, 1, "")])
 _r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
               "--jobs-dir", str(ROOT / "jobs"),
               "--events-db", str(_evdb), "--canary-db", str(_cadb),
-              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson),
+              "--receipts-dir", str(_rcdir), "--baseline", str(_base_ok)],
              capture_output=True, text=True, cwd=str(ROOT))
 check("slo verify FAILs on missing evidence",
       _r.returncode == 1 and "evidence" in _r.stdout)
@@ -391,7 +401,8 @@ con.commit(); con.close()
 _r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
               "--jobs-dir", str(_slo_jobs),
               "--events-db", str(_evdb), "--canary-db", str(_cadb),
-              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson),
+              "--receipts-dir", str(_rcdir), "--baseline", str(_base_ok)],
              capture_output=True, text=True, cwd=str(ROOT))
 check("slo verify SLO-VERIFIED when runs meet threshold",
       _r.returncode == 0 and "SLO-VERIFIED" in _r.stdout)
@@ -409,9 +420,146 @@ con.commit(); con.close()
 _r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
               "--jobs-dir", str(_slo_jobs),
               "--events-db", str(_evdb), "--canary-db", str(_cadb),
-              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson),
+              "--receipts-dir", str(_rcdir), "--baseline", str(_base_ok)],
              capture_output=True, text=True, cwd=str(ROOT))
 check("slo verify VIOLATION when runs exceed threshold",
       _r.returncode == 1 and "VIOLATION" in _r.stdout)
+
+# --- Codex CONDITIONAL findings: fail-closed verify_slo + receipts + baseline.
+def _slo_reset(ev_rows=(), ca_rows=(), jobs_json="[]", exec_rows=()):
+    """Self-contained fixture reset for the fail-closed blocks below."""
+    _mk_evdb(_evdb, list(ev_rows))
+    _mk_evdb(_cadb, list(ca_rows))
+    _jobjson.write_text(jobs_json, encoding="utf-8")
+    for f in _rcdir.glob("ag-fabric-canary-*.json"):
+        f.unlink()
+    con = _sql.connect(str(_ecdb))
+    con.execute("DROP TABLE IF EXISTS executions")
+    con.execute("CREATE TABLE executions (id TEXT, job_id TEXT, source TEXT, "
+                "status TEXT, scheduled_instant TEXT, started_at TEXT, "
+                "finished_at TEXT)")
+    for row in exec_rows:
+        con.execute("INSERT INTO executions VALUES (?,?,?,?,?,?,?)", row)
+    con.commit(); con.close()
+
+
+def _slo_run(jobs_dir=None):
+    return _sp.run(
+        [sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
+         "--jobs-dir", str(jobs_dir or (ROOT / "jobs")),
+         "--events-db", str(_evdb), "--canary-db", str(_cadb),
+         "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson),
+         "--receipts-dir", str(_rcdir), "--baseline", str(_base_ok)],
+        capture_output=True, text=True, cwd=str(ROOT))
+
+
+def _mk_receipt(name, key, resolved=True, mode="self-test", tamper=False):
+    import hashlib as _hl
+    import json as _js
+    doc = {"schema": "canary-receipt/1", "run_id": name, "at": "2026-09-08",
+           "key": key, "mode": mode, "emitted": 1, "deliveries": 1,
+           "resolved": resolved}
+    blob = _js.dumps(doc, indent=2, sort_keys=True)
+    doc["sha256"] = _hl.sha256(blob.encode()).hexdigest()
+    if tamper:
+        doc["resolved"] = not resolved  # break the seal after signing
+    (_rcdir / name).write_text(_js.dumps(doc, indent=2, sort_keys=True),
+                               encoding="utf-8")
+
+
+# unmapped SLO job against a LIVE install -> fail closed (exit 1)
+_slo_reset(jobs_json='[{"name":"nope","id":"x1"}]')
+_r = _slo_run()
+check("slo verify ERRORs on SLO job with no live mapping",
+      _r.returncode == 1 and "no live cron job id mapped" in _r.stdout)
+
+# unknown execution source -> fail closed (exit 1)
+_slo_reset(
+    ev_rows=[("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=ab")],
+    ca_rows=[("k1", "fp1", "RESOLVED", 1, 2, "type=synthetic_canary")],
+    jobs_json='[{"name":"ag-runtime-paritet","id":"r1"}]',
+    exec_rows=[("e0", "r1", "mystery", "completed", "",
+                "2026-09-01T00:00:00+00:00", "2026-09-01T00:01:00+00:00")])
+_r = _slo_run(_slo_jobs)
+check("slo verify ERRORs on unknown execution source",
+      _r.returncode == 1 and "unknown execution source" in _r.stdout)
+
+# malformed receipt -> fail closed (exit 1)
+_slo_reset(
+    ev_rows=[("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=ab")],
+    ca_rows=[("k1", "fp1", "RESOLVED", 1, 2, "type=synthetic_canary")])
+(_rcdir / "ag-fabric-canary-bad.json").write_text("{not json",
+                                                  encoding="utf-8")
+_r = _slo_run()
+check("slo verify ERRORs on malformed receipt",
+      _r.returncode == 1 and "malformed" in _r.stdout)
+
+# unresolved emission without covering receipt -> fail closed (exit 1)
+_slo_reset(
+    ev_rows=[("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=ab")],
+    ca_rows=[("k9", "fp9", "OPEN", 1, 1, "type=synthetic_canary")])
+_r = _slo_run()
+check("slo verify ERRORs on unresolved emission without receipt",
+      _r.returncode == 1 and "without covering receipt" in _r.stdout)
+
+# valid receipt covering a resolved key -> accepted (stays exit 2 here:
+# SLO history still pending, but no receipt error)
+_slo_reset(
+    ev_rows=[("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=ab")],
+    ca_rows=[("canary|monthly|synthetic", "fp9", "RESOLVED", 1, 2,
+              "type=synthetic_canary")])
+_mk_receipt("ag-fabric-canary-good.json", "canary|monthly|synthetic",
+            resolved=True)
+_r = _slo_run()
+check("slo verify accepts a valid covering receipt",
+      _r.returncode == 2 and "1 valid file" in _r.stdout)
+
+# tampered receipt (seal broken after signing) -> fail closed (exit 1)
+_slo_reset(
+    ev_rows=[("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=ab")],
+    ca_rows=[("k1", "fp1", "RESOLVED", 1, 2, "type=synthetic_canary")])
+_mk_receipt("ag-fabric-canary-tampered.json", "k1", resolved=True,
+            tamper=True)
+_r = _slo_run()
+check("slo verify ERRORs on tampered receipt",
+      _r.returncode == 1 and "sha256 mismatch" in _r.stdout)
+
+# baseline: volume within max -> pass branch contributes no error
+_now = time.time()
+_slo_reset(
+    ev_rows=[("k1", "fp1", "OPEN", _now - 86400, _now - 86400,
+              "type=commit;sha=ab")],
+    ca_rows=[("k1", "fp1", "RESOLVED", 1, 2, "type=synthetic_canary")])
+_r = _slo_run()
+check("slo verify passes volume within baseline",
+      "baseline volume" in _r.stdout and "exceeds" not in _r.stdout)
+
+# baseline: volume exceeds max -> VIOLATION (exit 1)
+_base_tight = _slo_dir / "baseline-tight.json"
+_base_tight.write_text('{"frozen_at": "2026-09-08T00:00:00+00:00", '
+                       '"window_days": 7, "max_daily_emissions": 0}',
+                       encoding="utf-8")
+_r = _sp.run(
+    [sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
+     "--jobs-dir", str(ROOT / "jobs"),
+     "--events-db", str(_evdb), "--canary-db", str(_cadb),
+     "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson),
+     "--receipts-dir", str(_rcdir), "--baseline", str(_base_tight)],
+    capture_output=True, text=True, cwd=str(ROOT))
+check("slo verify VIOLATION when volume exceeds baseline",
+      _r.returncode == 1 and "exceeds" in _r.stdout)
+
+# baseline: missing file -> fail closed (exit 1), never silent
+_r = _sp.run(
+    [sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
+     "--jobs-dir", str(ROOT / "jobs"),
+     "--events-db", str(_evdb), "--canary-db", str(_cadb),
+     "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson),
+     "--receipts-dir", str(_rcdir),
+     "--baseline", str(_slo_dir / "baseline-nope.json")],
+    capture_output=True, text=True, cwd=str(ROOT))
+check("slo verify ERRORs on missing baseline",
+      _r.returncode == 1 and "baseline file absent" in _r.stdout)
 
 print(f"\nBEHAVIOR-OK: {passed} checks")
