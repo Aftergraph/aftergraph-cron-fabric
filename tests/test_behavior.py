@@ -174,16 +174,19 @@ _core_schedules = [
     "ag-runtime-paritet", "ag-wi-contract", "ag-governance-drift",
     "ag-claim-watch", "ag-research-evidence", "ag-vault-watch",
     "ag-vault-freshness", "ag-sentinel-release",
-    "ag-fabric-delivery"]  # delivery canary: receipt-observing pair
-check("catalog: 9 core schedules match spec §5",
+    "ag-fabric-delivery",
+    # v0.5 P0 fabric concerns
+    "ag-merge-queue-stall", "ag-org-suite-liveness",
+    "ag-public-provenance", "ag-research-freeze-watch"]
+check("catalog: 13 core schedules match spec §5",
       set(_core_schedules) == set(_core_names) - {"ag-fabric-canary"}
-      and len(_core_names) == 10)  # 9 core + 1 state canary
+      and len(_core_names) == 14)  # 13 core + 1 state canary
 check("catalog: state canary present",
       "ag-fabric-canary" in _core_names)
 check("catalog: 1 legacy-local",
       _legacy_names == ["ag-legacy-noise-gate"])
-check("catalog: 11 jobs total",
-      len(_core_files) + len(_legacy_files) == 11)
+check("catalog: 15 jobs total",
+      len(_core_files) + len(_legacy_files) == 15)
 
 # 12. verify_tick.py: suppressed slot must FAIL, healthy slot must PASS
 import sqlite3 as _sql, json as _json
@@ -665,5 +668,38 @@ check("delivery canary job YAML uses no_agent mode",
       "mode: no_agent" in _text)
 check("delivery canary job YAML points at the right script",
       "scripts/sensors/delivery_canary.py" in _text)
+
+# 57-60. v0.5 P0 fabric concern sensors
+for _name, _script in [
+        ("ag-merge-queue-stall", "scripts/sensors/merge_queue_stall.py"),
+        ("ag-org-suite-liveness",
+         "scripts/sensors/org_suite_liveness.py"),
+        ("ag-public-provenance",
+         "scripts/sensors/public_provenance.py"),
+        ("ag-research-freeze-watch",
+         "scripts/sensors/research_freeze_watch.py")]:
+    _yaml = ROOT / "jobs" / f"{_name}.yaml"
+    _script_path = ROOT / _script
+    check(f"{_name}: job YAML exists", _yaml.is_file())
+    check(f"{_name}: script file exists", _script_path.is_file())
+    _text = _yaml.read_text(encoding="utf-8")
+    check(f"{_name}: read_only=true", "read_only: true" in _text)
+    check(f"{_name}: no_agent mode", "mode: no_agent" in _text)
+    check(f"{_name}: no prompt (forbidden for no_agent)",
+          "prompt:" not in _text)
+    check(f"{_name}: points at the right script",
+          _script in _text)
+    # Parse-script smoke: importable, has main()
+    _script_path_str = str(_script_path).replace("\\", "/")
+    _sp_result = _sp.run(
+        [sys.executable, "-c",
+         "import importlib.util\n"
+         f"s = importlib.util.spec_from_file_location('m', '{_script_path_str}')\n"
+         "m = importlib.util.module_from_spec(s)\n"
+         "s.loader.exec_module(m)\n"
+         "assert callable(getattr(m, 'main', None))\n"],
+        capture_output=True, text=True, cwd=str(ROOT))
+    check(f"{_name}: script imports cleanly and has main()",
+          _sp_result.returncode == 0)
 
 print(f"\nBEHAVIOR-OK: {passed} checks")

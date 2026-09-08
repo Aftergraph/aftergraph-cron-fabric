@@ -2,7 +2,7 @@
 
 # Aftergraph Cron Fabric
 
-Status: Product baseline v0.4 - 10 schedules / 7 concerns. Phase 1 scheduler/job execution proof is complete; Telegram transport exactly-once delivery is NOT yet claimed.
+Status: Product baseline v0.5 - 15 schedules / 7 concerns. Phase 1 scheduler/job execution proof is complete; Telegram transport exactly-once delivery is NOT yet claimed (delivery canary observes receipts but does not emit Telegram itself).
 One-line: a small set of Telegram-first scheduled jobs that watch the Aftergraph org and only speak when there is something to act on.
 
 Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is owned by [Aftergraph/brand](https://github.com/Aftergraph/brand); this repo copies no logos or tokens. See [docs/brand.md](docs/brand.md).
@@ -10,14 +10,27 @@ Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is ow
 ## What it does
 
 Today the profile runs 13 enabled cron jobs (verified 2026-09-08 11:15
-from jobs.json) plus 10 fabric definitions (8 core schedules, 1 canary,
-1 legacy-local). Noisy hourly watchdogs and 5-minute pollers have been
-retired; this repo provides the replacement fabric.
+from jobs.json) plus 15 fabric definitions (13 core schedules, 1 state
+canary, 1 delivery canary, 1 legacy-local). Noisy hourly watchdogs and
+5-minute pollers have been retired; this repo provides the replacement
+fabric.
 
 The v0.4 correctness core makes event claiming atomic across independent
 processes and turns `ag-runtime-paritet` / `ag-wi-contract` into two-stage
 monitors: a cheap deterministic artifact-change gate wakes an agent only when
 relevant state moved; changed SHA alone is never treated as semantic drift.
+
+v0.5 adds four read-only `no_agent` fabric concern sensors:
+- `ag-merge-queue-stall` (every 2h) - PRs stuck MERGEABLE+auto-merge+BLOCKED
+  past the stall window with no queue progress (observation only)
+- `ag-org-suite-liveness` (every 6h) - proves the shared polyrepo
+  integration machinery actually ran in the last 24h, classifies as
+  VERIFIED / PENDING / DEGRADED / MISSED
+- `ag-public-provenance` (every 6h) - public surfaces vs canonical
+  sources (docs / aftergraph.org / brand vs wi.observation /
+  brand.identity)
+- `ag-research-freeze-watch` (every 6h) - preregistered research
+  artifacts vs current SHAs, with amendment cover
 
 ## Tech stack
 
