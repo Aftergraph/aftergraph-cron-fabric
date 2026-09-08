@@ -2,6 +2,22 @@
 
 ## [Unreleased]
 
+### Verified 2026-09-08
+- Sentinel release sensor re-proven live: manual fire 09:12 -> completed
+  09:16:18 (execution e8122786), first full EMIT with cites (rulepack
+  v1.7.0 blob eed01437, firetest PRESENT, typed event recorded in
+  state/events.sqlite). Read-only throughout; receipt recorded
+  deploy/receipts/ag-sentinel-release.json (config hash 2a76d1058437).
+- Root cause falsified, source-verified: a direct run inherits the next
+  scheduled instant as its scheduled_instant, and jobs.py L2928
+  (completed_occurrence) skips a non-manual tick whose slot shows a
+  completed execution -> one direct fire consumes the upcoming tick.
+  Fix: clear inherited scheduled_instant after direct fires so the next
+  scheduled tick still fires.
+- Phase 1 live end-to-end COMPLETE: all 4 monitored jobs now have
+  verified live runs (canary, runtime-paritet, wi-contract,
+  sentinel-release).
+
 ### Added
 - Initial 7-job fabric + review spec.
 - Aftergraph brand setup: docs/brand.md, README hero/links, brand.identity
