@@ -39,6 +39,34 @@ FRESH_WINDOW_HOURS = 24
 
 DEGRADED_PCT_THRESHOLD = 0.20  # >20% missing core repos = DEGRADED
 
+# Offline fixture support. When --offline-fixture <path> is passed (or
+# AG_FABRIC_OFFLINE_FIXTURE is set), gh run list calls return data
+# from the fixture dict. Schema:
+#   { "runs": { "<repo>": [<run dict>, ...] } }
+_OFFLINE_FIXTURE = None
+
+
+def _load_offline_fixture():
+    global _OFFLINE_FIXTURE
+    if _OFFLINE_FIXTURE is not None:
+        return _OFFLINE_FIXTURE
+    path = None
+    if len(sys.argv) > 1 and sys.argv[1] == "--offline-fixture" \
+            and len(sys.argv) > 2:
+        path = sys.argv[2]
+    elif "AG_FABRIC_OFFLINE_FIXTURE" in os.environ:
+        path = os.environ["AG_FABRIC_OFFLINE_FIXTURE"]
+    if not path:
+        return None
+    p = Path(path)
+    if not p.is_file():
+        return None
+    try:
+        _OFFLINE_FIXTURE = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        _OFFLINE_FIXTURE = {}
+    return _OFFLINE_FIXTURE
+
 
 def _repo_root():
     env = os.environ.get("AG_FABRIC_ROOT")
@@ -75,6 +103,19 @@ def _gh_api(repo, endpoint):
 def _latest_ci_run(repo):
     """Return (conclusion, head_sha, completed_at) for the most recent
     completed CI workflow run on main, or None if absent."""
+    fix = _load_offline_fixture()
+    if fix is not None:
+        runs = (fix.get("runs", {}).get(repo) or [])
+        completed = [r for r in runs if r.get("status") == "completed"]
+        if not completed:
+            return None
+        r = completed[0]
+        return {
+            "conclusion": r.get("conclusion"),
+            "head_sha": r.get("headSha"),
+            "run_id": r.get("databaseId"),
+            "name": r.get("name"),
+        }
     out = subprocess.run(
         ["gh", "run", "list",
          "-R", repo, "--branch", "main",
@@ -99,8 +140,14 @@ def _latest_ci_run(repo):
 
 
 def main():
-    store = EventStore(str(
-        REPO / "state" / f"org_suite_liveness.{int(time.time())}.sqlite"))
+    global REPO
+    REPO = _repo_root()
+    # Persistent EventStore: per-sensor, not per-run. AG_FABRIC_STORE
+    # env var overrides for tests; production uses the default path.
+    default_store = REPO / "state" / "org_suite_liveness.sqlite"
+    store_path = os.environ.get(
+        "AG_FABRIC_STORE", str(default_store))
+    store = EventStore(store_path)
 
     missing = []
     present = []
@@ -113,6 +160,7 @@ def main():
 
     if not present:
         classification = "ORG-SUITE-MISSED"
+        missing_pct = 1.0  # all core repos missing
     else:
         missing_pct = len(missing) / len(CORE_REPOS)
         if missing_pct == 0.0:
@@ -129,8 +177,7 @@ def main():
         "core_repos": len(CORE_REPOS),
         "present": len(present),
         "missing": sorted(missing),
-        "missing_pct": round(missing_pct, 4)
-            if 'missing_pct' in dir() else len(missing) / len(CORE_REPOS),
+        "missing_pct": round(missing_pct, 4),
         "fresh_window_hours": FRESH_WINDOW_HOURS,
     }
     fp = json.dumps(evidence, sort_keys=True, separators=(",", ":"))

@@ -184,18 +184,20 @@ _core_schedules = [
     "ag-fabric-delivery",
     # v0.5 P0 fabric concerns
     "ag-merge-queue-stall", "ag-org-suite-liveness",
-    "ag-public-provenance", "ag-research-freeze-watch"]
-check("catalog: 13 core schedules match spec §5",
+    "ag-public-provenance", "ag-research-freeze-watch",
+    # v0.5.1 shadow runner
+    "ag-v05-shadow-summary"]
+check("catalog: 14 core schedules match spec §5",
       set(_core_schedules) == set(_core_names) - {"ag-fabric-canary"}
-      and len(_core_names) == 14)  # 13 core + 1 state canary
+      and len(_core_names) == 15)  # 14 core + 1 state canary
 check("catalog: state canary present",
       "ag-fabric-canary" in _core_names)
 check("catalog: delivery canary present",
       "ag-fabric-delivery" in _core_names)
 check("catalog: 1 legacy-local",
       _legacy_names == ["ag-legacy-noise-gate"])
-check("catalog: 15 jobs total",
-      len(_core_files) + len(_legacy_files) == 15)
+check("catalog: 16 jobs total",
+      len(_core_files) + len(_legacy_files) == 16)
 
 # 12. verify_tick.py: suppressed slot must FAIL, healthy slot must PASS
 import sqlite3 as _sql, json as _json

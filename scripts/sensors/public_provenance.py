@@ -20,7 +20,7 @@ import time
 from pathlib import Path
 
 
-# (repo, surface_path, target_contract_id_in_sources_yaml)
+# (repo, surface_path, target_contract_id_in_sources.yaml)
 # Each surface has a canonical target whose current SHA is fetched via
 # gh api and compared to the surface's recorded pin. Update when the
 # public surface changes.
@@ -32,6 +32,35 @@ PROVENANCE_PAIRS = [
     ("Aftergraph/brand", "docs/canonical/masterbrand.md",
      "brand.identity"),
 ]
+
+# Offline fixture support. Schema:
+#   {
+#     "canonical": { "<repo>": "<sha>", ... },
+#     "surface_pin": { "<repo>:<path>": "<sha>" }
+#   }
+_OFFLINE_FIXTURE = None
+
+
+def _load_offline_fixture():
+    global _OFFLINE_FIXTURE
+    if _OFFLINE_FIXTURE is not None:
+        return _OFFLINE_FIXTURE
+    path = None
+    if len(sys.argv) > 1 and sys.argv[1] == "--offline-fixture" \
+            and len(sys.argv) > 2:
+        path = sys.argv[2]
+    elif "AG_FABRIC_OFFLINE_FIXTURE" in os.environ:
+        path = os.environ["AG_FABRIC_OFFLINE_FIXTURE"]
+    if not path:
+        return None
+    p = Path(path)
+    if not p.is_file():
+        return None
+    try:
+        _OFFLINE_FIXTURE = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        _OFFLINE_FIXTURE = {}
+    return _OFFLINE_FIXTURE
 
 
 def _repo_root():
@@ -62,7 +91,7 @@ def _gh_api(repo, endpoint):
         if out.returncode != 0:
             return None
         return json.loads(out.stdout)
-    except (subprocess.TimeoutExceeded, json.JSONDecodeError):
+    except (subprocess.TimeoutExpired, json.JSONDecodeError):
         return None
 
 
@@ -71,6 +100,9 @@ def _canonical_head_sha(repo, paths):
     default branch's HEAD for the repo (the canonical surface
     identifier), not the file's own blob SHA — which would change too
     often to be useful as a public surface anchor."""
+    fix = _load_offline_fixture()
+    if fix is not None:
+        return fix.get("canonical", {}).get(repo)
     head = _gh_api(repo, "commits/HEAD")
     if not isinstance(head, dict):
         return None
@@ -81,6 +113,10 @@ def _surface_pin_sha(repo, surface_path):
     """Find any 40-char hex SHA string in the surface file. Real
     provenance pins are SHA-256 (64-char) or git SHA1 (40-char); we
     accept either to avoid coupling to one digest length."""
+    fix = _load_offline_fixture()
+    if fix is not None:
+        key = f"{repo}:{surface_path}"
+        return fix.get("surface_pin", {}).get(key)
     raw = _gh_api(repo, f"contents/{surface_path}")
     if not isinstance(raw, dict):
         return None
@@ -104,8 +140,13 @@ def _surface_pin_sha(repo, surface_path):
 
 
 def main():
-    store = EventStore(str(
-        REPO / "state" / f"public_provenance.{int(time.time())}.sqlite"))
+    global REPO
+    REPO = _repo_root()
+    # Persistent EventStore: per-sensor, not per-run.
+    default_store = REPO / "state" / "public_provenance.sqlite"
+    store_path = os.environ.get(
+        "AG_FABRIC_STORE", str(default_store))
+    store = EventStore(store_path)
 
     total_emitted = 0
     for repo, surface_path, target in PROVENANCE_PAIRS:

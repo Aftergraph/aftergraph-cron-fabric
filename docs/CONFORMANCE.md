@@ -6,11 +6,11 @@ mechanically with one command.
 
 | Spec section | Claim | Verification | Command |
 |---|---|---|---|
-| 1 | 15 YAML files (13 core + 1 state canary + 1 legacy-local) | test_behavior: catalog pinning | python3 tests/test_behavior.py |
+| 1 | 16 YAML files (14 core + 1 state canary + 1 legacy-local) | test_behavior: catalog pinning | python3 tests/test_behavior.py |
 | 1 | jobs/ directory layout matches spec | test_behavior: YAML content validation | python3 tests/test_behavior.py |
 | 2 | Event state machine (OPEN/HEALTHY -> EMIT/RESOLVED) | event_store.py + test_behavior: "resolve closes" + "return EMITs again" | python3 tests/test_behavior.py |
 | 2 | Typed evidence required on every notify+ | sensor_guard + test_behavior: "typed evidence guard" | python3 tests/test_behavior.py |
-| 3 | 13 core schedules | validate.py + test_behavior: catalog pinning | python3 scripts/validate.py jobs |
+| 3 | 14 core schedules | validate.py + test_behavior: catalog pinning | python3 scripts/validate.py jobs |
 | 3 | Canary (ag-fabric-canary + ag-fabric-delivery pair) | test_behavior: exactly 2 canary YAMLs | python3 tests/test_behavior.py |
 | 3 | Legacy (ag-legacy-noise-gate) | test_behavior: exactly 1 legacy YAML | python3 tests/test_behavior.py |
 | 4 | RequireTypedEvidence rejects untupled | test_behavior: "typed evidence guard" + "rejects JSON-not-dict evidence" | python3 tests/test_behavior.py |
@@ -20,7 +20,7 @@ mechanically with one command.
 | 5 | Retry-After (RFC 9110 delta-seconds + HTTP-date) | test_behavior: 4 retry_after_seconds checks | python3 tests/test_behavior.py |
 | 5 | Audit log | event_store.py: log_audit + test_behavior: "record writes receipt" | python3 tests/test_behavior.py |
 | 7 | CI runs validate + tests + canary | CI workflow (.github/workflows/ci.yml) | gh api .../check-runs |
-| 8 | validate.py validates 15 YAML files | validate.py output | python3 scripts/validate.py jobs |
+| 8 | validate.py validates 16 YAML files | validate.py output | python3 scripts/validate.py jobs |
 | 8 | test_behavior.py runs 92 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
 | 8 | Canary self-test | canary.py exit 0 | python3 scripts/sensors/canary.py |
 | 8 | Canary --on-demand pre-deploy probe | canary --on-demand: EMIT -> OK (non-destructive) | python3 scripts/sensors/canary.py --on-demand |
@@ -42,13 +42,18 @@ mechanically with one command.
 | 13.2 | public-provenance scope from contracts/sources.yaml | scripts/sensors/public_provenance.py + test_behavior: "public-provenance reads from contracts/sources.yaml" | python3 tests/test_behavior.py |
 | 13.3 | research-freeze-watch scope from freeze manifest + amendments | contracts/freeze-manifest.yaml + contracts/freeze-amendments.yaml + test_behavior: "research-freeze-watch reads freeze manifest" + "reads amendments" | python3 tests/test_behavior.py |
 | 13.4 | org-suite-liveness CORE_REPOS is a documented module-level constant (not yet policy-driven) | test_behavior: "org-suite-liveness: CORE_REPOS is a module-level constant (documented)" | python3 tests/test_behavior.py |
+| 14 | v0.5.1 synthetic proof: all four P0 sensors detect their failure class offline, no live GitHub, no skip counted as proof | tests/test_synthetic_fixtures.py: FIXTURES-OK 16/16 | python3 tests/test_synthetic_fixtures.py |
+| 14.1 | Cross-run dedupe: persistent per-sensor EventStore; repeat finding SILENCEs across runs | test_synthetic_fixtures: dedupe scenarios (merge-queue repeat, provenance repeat, freeze repeat) | python3 tests/test_synthetic_fixtures.py |
+| 14.2 | Observed recovery: stalled -> RESOLVED (HEALTHY) -> re-arm -> EMIT again | test_synthetic_fixtures: merge-queue resolved_then_rearm scenario | python3 tests/test_synthetic_fixtures.py |
+| 14.3 | Daily shadow summary receipt (immutable, one per day, no Telegram delivery) | scripts/v05_shadow_summary.py + jobs/ag-v05-shadow-summary.yaml + deploy/receipts/v05-shadow-summary-*.json (live, gitignored) | python scripts/v05_shadow_summary.py |
+| 14.4 | Telegram receipt bridge produces normative delivery receipts on positive renderer proof (chain: claim -> renderer -> receipt -> delivery canary verifies); NOT promoted to production delivery | scripts/telegram_receipt_bridge.py + docs/delivery-receipts-spec.md + offline chain proof | manual chain proof (tmp script) |
 
 ## Quick conformance check
 
 Run the following to verify all spec claims in one pass:
 
 ```
-python3 scripts/validate.py jobs       # 15 jobs
+python3 scripts/validate.py jobs       # 16 jobs
 python3 tests/test_behavior.py         # 92 behavioral checks
 python3 scripts/sensors/canary.py      # canary self-test
 ```

@@ -68,9 +68,50 @@ MAX_BYPASS_ACTORS = 0
 
 STALL_WINDOW_MINUTES = 90
 
+# Offline fixture support. When --offline-fixture <path> is passed (or
+# AG_FABRIC_OFFLINE_FIXTURE is set), all gh api calls return data from
+# the fixture dict instead of network. The fixture schema is:
+#   {
+#     "prs": { "<repo>": [<pr dict>, ...], ... },
+#     "timeline": { "<repo>#<num>": [<event>, ...], ... }
+#   }
+# This is the only synthetic-proof path. Live GitHub access is never
+# required for a fixture run.
+_OFFLINE_FIXTURE = None
+
+
+def _load_offline_fixture():
+    global _OFFLINE_FIXTURE
+    if _OFFLINE_FIXTURE is not None:
+        return _OFFLINE_FIXTURE
+    path = None
+    if len(sys.argv) > 1 and sys.argv[1] == "--offline-fixture" \
+            and len(sys.argv) > 2:
+        path = sys.argv[2]
+    elif "AG_FABRIC_OFFLINE_FIXTURE" in os.environ:
+        path = os.environ["AG_FABRIC_OFFLINE_FIXTURE"]
+    if not path:
+        return None
+    p = Path(path)
+    if not p.is_file():
+        return None
+    try:
+        _OFFLINE_FIXTURE = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        _OFFLINE_FIXTURE = {}
+    return _OFFLINE_FIXTURE
+
 
 def _gh_api(repo, endpoint):
-    """Best-effort gh api call. Returns dict or None on failure."""
+    """Best-effort gh api call. Returns dict or None on failure.
+    In offline-fixture mode, returns data from the loaded fixture
+    based on (repo, endpoint) key."""
+    fix = _load_offline_fixture()
+    if fix is not None:
+        # Endpoint "pulls?state=open&..." maps to fix["prs"][repo]
+        if endpoint.startswith("pulls"):
+            return fix.get("prs", {}).get(repo)
+        return None
     try:
         out = subprocess.run(
             ["gh", "api", f"repos/{repo}/{endpoint}"],
@@ -84,6 +125,11 @@ def _gh_api(repo, endpoint):
 
 def _pr_timeline_signals(repo, pr_number):
     """Return set of event names that indicate queue progress."""
+    fix = _load_offline_fixture()
+    if fix is not None:
+        key = f"{repo}#{pr_number}"
+        events = fix.get("timeline", {}).get(key, [])
+        return {e.get("event") for e in events if e.get("event")}
     try:
         out = subprocess.run(
             ["gh", "api",
@@ -144,6 +190,12 @@ def _is_stalled(repo, pr):
     if queue_progress:
         return False, None
 
+    # Include queue_progress presence in evidence so a re-arm
+    # (progress -> no-progress) yields a new fingerprint and the
+    # EventStore can re-EMIT. Without this, a transition from
+    # "stalled with progress" back to "stalled without progress" is
+    # observably different state but the sensor would dedupe to
+    # SILENCE.
     return True, {
         "repo": repo,
         "pr_number": pr["number"],
@@ -151,6 +203,7 @@ def _is_stalled(repo, pr):
         "age_minutes": round(age_min, 1),
         "stall_window_minutes": STALL_WINDOW_MINUTES,
         "queue_signals_seen": sorted(signals),
+        "queue_progress_active": bool(queue_progress),
         "checks_summary": [
             {"name": c.get("name"), "conclusion": c.get("conclusion")}
             for c in rollup if c.get("__typename") == "CheckRun"],
@@ -200,8 +253,18 @@ def _load_queue_policy():
 
 
 def main():
-    store = EventStore(str(
-        REPO / "state" / f"merge_queue_stall.{int(time.time())}.sqlite"))
+    # REPO is resolved at module-import time, but tests inject a
+    # different fabric root via AG_FABRIC_ROOT. Re-resolve here so
+    # REPO-rooted paths (state/, contracts/) match the test workdir.
+    global REPO
+    REPO = _repo_root()
+    # Persistent EventStore path: per-sensor, not per-run. Cross-run
+    # dedupe (EMIT once, then SILENCE on repeat) requires the same DB
+    # across runs. Tests override via AG_FABRIC_STORE.
+    default_store = REPO / "state" / "merge_queue_stall.sqlite"
+    store_path = os.environ.get(
+        "AG_FABRIC_STORE", str(default_store))
+    store = EventStore(store_path)
 
     queue_repos = _load_queue_policy()
     if not queue_repos:
@@ -211,6 +274,7 @@ def main():
 
     total_checked = 0
     total_emitted = 0
+    stalled_keys = set()
     for repo in queue_repos:
         prs = _gh_api(repo, "pulls?state=open&per_page=50")
         if not isinstance(prs, list):
@@ -221,6 +285,9 @@ def main():
             is_stalled, evidence = _is_stalled(repo, pr)
             if not is_stalled:
                 continue
+            stalled_keys.add(
+                f"merge-queue-stall|{repo}|{pr['number']}|"
+                f"{pr['headRefOid']}")
             fp_evidence = json.dumps(evidence, sort_keys=True,
                                     separators=(",", ":"))
             key = (f"merge-queue-stall|{repo}|{pr['number']}|"
@@ -230,8 +297,23 @@ def main():
             print(f"MERGE-QUEUE-STALL-{action}: {repo}#{pr['number']} "
                   f"age={evidence['age_minutes']}m")
 
+    # Observed recovery: any previously-OPEN stall event for a scanned
+    # repo that is no longer stalled (queue progress appeared, PR
+    # merged, or head changed) is RESOLVED. Marking HEALTHY re-arms the
+    # event key so a later stall with the same head SHA can EMIT again.
+    total_resolved = 0
+    open_keys = store.open_event_keys()
+    for key in open_keys:
+        if not key.startswith("merge-queue-stall|"):
+            continue
+        if key in stalled_keys:
+            continue
+        store.resolve(key)
+        total_resolved += 1
+        print(f"MERGE-QUEUE-STALL-RESOLVED: {key}")
+
     print(f"MERGE-QUEUE-STALL-OK: checked={total_checked} "
-          f"emitted={total_emitted}")
+          f"emitted={total_emitted} resolved={total_resolved}")
     sys.exit(0)
 
 

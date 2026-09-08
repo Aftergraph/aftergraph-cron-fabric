@@ -129,6 +129,19 @@ class EventStore:
         self.db.commit()
         return cur.rowcount == 1
 
+    def open_event_keys(self, prefix=None):
+        """Return all currently-OPEN event keys, optionally filtered by
+        a key prefix (e.g. 'merge-queue-stall|')."""
+        if prefix:
+            cur = self.db.execute(
+                "SELECT event_key FROM events "
+                "WHERE state = 'OPEN' AND event_key LIKE ?",
+                (prefix + "%",))
+        else:
+            cur = self.db.execute(
+                "SELECT event_key FROM events WHERE state = 'OPEN'")
+        return [r[0] for r in cur.fetchall()]
+
     def resolve(self, event_key):
         """Mark HEALTHY only after the sensor observes the problem is gone."""
         self.db.execute("UPDATE events SET state = 'HEALTHY', "

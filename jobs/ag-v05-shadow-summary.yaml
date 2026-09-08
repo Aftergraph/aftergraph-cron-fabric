@@ -1,0 +1,23 @@
+# v0.5.1 daily shadow summary job.
+#
+# Runs the four v0.5 P0 sensors once per day and writes one immutable
+# daily receipt under deploy/receipts/. Telegram delivery is
+# DISABLED in shadow mode: findings accumulate as evidence only.
+#
+# This job is the SHADOW_RUNNING transition trigger: once this job has
+# run 7 consecutive days with the acceptance criteria satisfied, the
+# verdict moves to SHADOW_ACCEPTED.
+
+name: ag-v05-shadow-summary
+schedule: every day at 8am
+mode: no_agent
+read_only: true
+severity: info
+deliver: none
+allowed_dispositions: [SKIP, SILENCE, RESOLVED]
+rollback: none
+script: scripts/v05_shadow_summary.py
+description: >
+  Daily v0.5 shadow summary: runs the four P0 sensors, classifies
+  actions (EMIT/UPDATE/SILENCE/RESOLVED/SKIP/crashes), and writes one
+  immutable daily receipt. No Telegram delivery. No agent invocation.
