@@ -13,7 +13,7 @@ REQUIRED = {"name", "schedule", "deliver", "severity",
 # scripts/event_store.py; validator rejects bare [terminal] otherwise.
 SEVERITIES = {"info", "warning", "critical"}
 DISPOSITIONS = {"store", "digest", "notify", "decision", "incident"}
-SECRETS = re.compile(r"BEGIN PRIVATE KEY|ghp_|xoxb-|sk-live|api_key\s*[:=]\s*\S",
+SECRETS = re.compile(r"BEGIN PRIVATE KEY|ghp_|gho_|github_pat_|xoxb-|xoxp-|xoxa-|sk-live|AKIA[0-9A-Z]{16}|api_key\s*[:=]\s*\S|token\s*[:=]\s*\S",
                      re.IGNORECASE)
 
 
