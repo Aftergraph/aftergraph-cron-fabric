@@ -10,10 +10,20 @@ Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is ow
 ## What it does
 
 Today the profile runs 13 enabled cron jobs (verified 2026-09-08 11:15
-from jobs.json) plus 15 fabric definitions (13 core schedules, 1 state
-canary, 1 delivery canary, 1 legacy-local). Noisy hourly watchdogs and
-5-minute pollers have been retired; this repo provides the replacement
-fabric.
+from jobs.json) plus 15 fabric definitions (13 core schedules including
+the delivery canary, 1 state canary, 1 legacy-local). Noisy hourly
+watchdogs and 5-minute pollers have been retired; this repo provides
+the replacement fabric.
+
+### v0.5 SHADOW READINESS
+
+The four new P0 fabric concern sensors (merge-queue-stall,
+org-suite-liveness, public-provenance, research-freeze-watch) are
+**ready for shadow rollout** as of 2026-09-08. See
+[docs/v05-shadow-readiness.md](docs/v05-shadow-readiness.md) for the
+exact-HEAD verdict, full job inventory, synthetic proof, and
+remaining blockers. P1/P2 jobs are scope-locked under
+[contracts/v06-scope-lock.yaml](contracts/v06-scope-lock.yaml).
 
 The v0.4 correctness core makes event claiming atomic across independent
 processes and turns `ag-runtime-paritet` / `ag-wi-contract` into two-stage
@@ -44,7 +54,7 @@ Telegram Ops topic for cron delivery when production delivery is enabled.
 git clone https://github.com/Aftergraph/aftergraph-cron-fabric.git
 cd aftergraph-cron-fabric
 python3 scripts/validate.py          # validates every jobs/*.yaml
-python3 tests/test_behavior.py       # 46 behavioral checks at v0.4 merge proof
+python3 tests/test_behavior.py       # 92 behavioral checks at v0.5 merge proof
 cat CHATGPT-REVIEW-SPEC.md           # reviewable product contract
 cat docs/CONFORMANCE.md              # spec-section -> proof command map
 ```

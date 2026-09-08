@@ -1,0 +1,36 @@
+# Queue-protected repo policy.
+#
+# Canonical scope for Cron Fabric sensors that reason about merge-queue
+# behaviour (currently ag-merge-queue-stall). This is the SINGLE source
+# of truth for which repos have merge-queue rules; do NOT duplicate the
+# list in sensor code.
+#
+# Update via PR when after-graph-governance adds or removes a
+# queue-required ruleset. The sensor validates this file at startup and
+# fails closed if it is missing or malformed.
+#
+# Schema (kept simple and YAML-only so validate.py can parse without
+# pulling in jsonschema deps):
+#
+#   queue_required_repos:
+#     - full_name: Aftergraph/<repo>
+#       ruleset_id: <number>            # GitHub ruleset ID
+#       enforcement: active | disabled
+#       bypass_actors: <count>          # 0 = no bypass; required for sensor trust
+#       added_at: <ISO date>
+#       reason: <short>
+#
+# The sensor trusts a repo only if enforcement=active AND bypass_actors=0.
+# A repo with bypass actors is still queue-required but the sensor will
+# downgrade its findings (a bypass actor can merge --admin at any time,
+# so a stall is operationally less interesting).
+
+queue_required_repos:
+  - full_name: Aftergraph/after-graph-governance
+    ruleset_id: 22410245
+    enforcement: active
+    bypass_actors: 0
+    added_at: 2026-09-08
+    reason: >
+      merge-queue-main ruleset. Required after PR #49 / #51 merge cadence
+      showed the queue can die silently after a ruleset modification.

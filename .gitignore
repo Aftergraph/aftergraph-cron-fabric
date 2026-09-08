@@ -12,6 +12,10 @@ deploy/receipts/ag-fabric-canary-*.json
 # the external Telegram renderer (or the --synthesize-receipt test path).
 # Same rule as state canary receipts: never committed; live evidence only.
 deploy/delivery-receipts/
+# v0.5 shadow rollout receipts: per-run JSON produced by
+# scripts/ag_v05_shadow_rollout.py. Hand-recorded evidence receipts
+# (e.g. deploy/receipts/ag-sentinel-release.json) stay tracked deliberately.
+deploy/receipts/ag-v05-shadow-*.json
 .env
 .DS_Store
 Thumbs.db

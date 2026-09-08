@@ -6,12 +6,12 @@ mechanically with one command.
 
 | Spec section | Claim | Verification | Command |
 |---|---|---|---|
-| 1 | 10 YAML files (8 core + 1 canary + 1 legacy) | test_behavior: catalog pinning | python3 tests/test_behavior.py |
+| 1 | 15 YAML files (13 core + 1 state canary + 1 legacy-local) | test_behavior: catalog pinning | python3 tests/test_behavior.py |
 | 1 | jobs/ directory layout matches spec | test_behavior: YAML content validation | python3 tests/test_behavior.py |
 | 2 | Event state machine (OPEN/HEALTHY -> EMIT/RESOLVED) | event_store.py + test_behavior: "resolve closes" + "return EMITs again" | python3 tests/test_behavior.py |
 | 2 | Typed evidence required on every notify+ | sensor_guard + test_behavior: "typed evidence guard" | python3 tests/test_behavior.py |
-| 3 | 8 core schedules | validate.py + test_behavior: catalog pinning | python3 scripts/validate.py jobs |
-| 3 | Canary (ag-fabric-canary) | test_behavior: exactly 1 canary YAML | python3 tests/test_behavior.py |
+| 3 | 13 core schedules | validate.py + test_behavior: catalog pinning | python3 scripts/validate.py jobs |
+| 3 | Canary (ag-fabric-canary + ag-fabric-delivery pair) | test_behavior: exactly 2 canary YAMLs | python3 tests/test_behavior.py |
 | 3 | Legacy (ag-legacy-noise-gate) | test_behavior: exactly 1 legacy YAML | python3 tests/test_behavior.py |
 | 4 | RequireTypedEvidence rejects untupled | test_behavior: "typed evidence guard" + "rejects JSON-not-dict evidence" | python3 tests/test_behavior.py |
 | 4 | CrossProcessSemaphore correctness | test_behavior: "3 holders admitted" + "contender refused" | python3 tests/test_behavior.py |
@@ -20,8 +20,8 @@ mechanically with one command.
 | 5 | Retry-After (RFC 9110 delta-seconds + HTTP-date) | test_behavior: 4 retry_after_seconds checks | python3 tests/test_behavior.py |
 | 5 | Audit log | event_store.py: log_audit + test_behavior: "record writes receipt" | python3 tests/test_behavior.py |
 | 7 | CI runs validate + tests + canary | CI workflow (.github/workflows/ci.yml) | gh api .../check-runs |
-| 8 | validate.py validates 10 YAML files | validate.py output | python3 scripts/validate.py jobs |
-| 8 | test_behavior.py runs 55 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
+| 8 | validate.py validates 15 YAML files | validate.py output | python3 scripts/validate.py jobs |
+| 8 | test_behavior.py runs 92 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
 | 8 | Canary self-test | canary.py exit 0 | python3 scripts/sensors/canary.py |
 | 8 | Canary --on-demand pre-deploy probe | canary --on-demand: EMIT -> OK (non-destructive) | python3 scripts/sensors/canary.py --on-demand |
 | 9 | Duplicate rate measurable | verify_slo.py check_duplicate_rate | python3 scripts/verify_slo.py --jobs-dir jobs --events-db state/events.sqlite --canary-db state/canary.sqlite --executions-db EXEC_DB --jobs-json JOBS_JSON |
@@ -37,15 +37,19 @@ mechanically with one command.
 | 11 | Delivery receipt contract (sha256-attested, deterministic filename) | docs/delivery-receipts-spec.md + delivery_canary.py self-test + test_behavior: "delivery canary self-test with synthetic receipt" | python3 tests/test_behavior.py |
 | 11 | Delivery canary fails closed (no receipt / tampered sha / wrong fingerprint) | test_behavior: 3 fail-closed checks | python3 tests/test_behavior.py |
 | 12 | Canary pair as one invariant (state proves local, delivery proves external, neither alone sufficient) | docs/canary-pair-architecture.md + both canary scripts + receipt specs | n/a (architectural doc) |
-| 13 | v0.5 P0 fabric concern sensors (merge-queue-stall, org-suite-liveness, public-provenance, research-freeze-watch) | scripts/sensors/{merge_queue_stall,org_suite_liveness,public_provenance,research_freeze_watch}.py + jobs/*.yaml + test_behavior: 7 checks per sensor | python3 tests/test_behavior.py |
+| 13 | v0.5 P0 fabric concern sensors (merge-queue-stall, org-suite-liveness, public-provenance, research-freeze-watch) | scripts/sensors/{merge_queue_stall,org_suite_liveness,public_provenance,research_freeze_watch}.py + jobs/*.yaml + contracts/queue-policy.yaml + contracts/freeze-manifest.yaml + test_behavior: 7+ checks per sensor | python3 tests/test_behavior.py |
+| 13.1 | merge-queue-stall scope from contracts/queue-policy.yaml (no hardcoded repo list) | contracts/queue-policy.yaml + test_behavior: "merge-queue-stall reads from contracts/queue-policy.yaml" + "has no hardcoded repo list" | python3 tests/test_behavior.py |
+| 13.2 | public-provenance scope from contracts/sources.yaml | scripts/sensors/public_provenance.py + test_behavior: "public-provenance reads from contracts/sources.yaml" | python3 tests/test_behavior.py |
+| 13.3 | research-freeze-watch scope from freeze manifest + amendments | contracts/freeze-manifest.yaml + contracts/freeze-amendments.yaml + test_behavior: "research-freeze-watch reads freeze manifest" + "reads amendments" | python3 tests/test_behavior.py |
+| 13.4 | org-suite-liveness CORE_REPOS is a documented module-level constant (not yet policy-driven) | test_behavior: "org-suite-liveness: CORE_REPOS is a module-level constant (documented)" | python3 tests/test_behavior.py |
 
 ## Quick conformance check
 
 Run the following to verify all spec claims in one pass:
 
 ```
-python3 scripts/validate.py jobs       # 10 jobs
-python3 tests/test_behavior.py         # 41 behavioral checks
+python3 scripts/validate.py jobs       # 15 jobs
+python3 tests/test_behavior.py         # 92 behavioral checks
 python3 scripts/sensors/canary.py      # canary self-test
 ```
 
