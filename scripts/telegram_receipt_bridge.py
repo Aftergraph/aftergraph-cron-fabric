@@ -75,8 +75,10 @@ def _hash_payload(body):
 
 
 def _key16(event_key, fingerprint):
+    # NUL byte separator, identical to EventStore.fingerprint() and the
+    # delivery canary's receipt-filename derivation.
     return hashlib.sha256(
-        f"{event_key}\\0{fingerprint}".encode("utf-8")).hexdigest()[:16]
+        (event_key + "\0" + fingerprint).encode("utf-8")).hexdigest()[:16]
 
 
 def _send_via_renderer(task_id, message, producer=None):
@@ -140,7 +142,8 @@ def main():
 
     # Positive delivery proof: write the normative receipt.
     DELIVERY_RECEIPTS_DIR.mkdir(parents=True, exist_ok=True)
-    now = time.strftime("%Y%m%dT%H%M%S%fZ", time.gmtime())
+    from datetime import datetime, timezone
+    now = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "Z"
     message_id = f"statuscard-{args.task_id}-{now}"
     body = {
         "schema": DELIVERY_RECEIPT_SCHEMA,
