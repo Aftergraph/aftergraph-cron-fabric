@@ -23,9 +23,8 @@
   observed_at, repo?, sha?}; types: commit | workflow_run | contract |
   http_observation | repository_state | cron_run | synthetic_canary.
   Commit findings still require exact sha. Tested (3 new checks).
-- #4 counts -> honest: 9 schedules / 7 concerns (7 core schedules,
-  1 temporary rule inside sentinel-release, 1 legacy-local). No creative
-  accounting.
+- #4 counts -> honest: 10 schedules / 7 concerns (8 core schedules,
+  1 canary, 1 legacy-local). No creative accounting.
 - #5 dedupe ownership -> event_store = authoritative event lifecycle +
   delivery dedupe. monitor/wake = cost gate only. continuity = reasoning
   context only, kept ONLY on deep audits (removed from claim-watch,
@@ -63,9 +62,9 @@
 
 ## 1. Decision
 
-9 schedules / 7 concerns. Phase 1: ag-runtime-paritet, ag-wi-contract,
-ag-sentinel-release (temporary rule active) - paused + manual run +
-7-day shadow vs comparator.
+10 schedules / 7 concerns (8 core + 1 canary + 1 legacy). Phase 1:
+ag-runtime-paritet, ag-wi-contract, ag-sentinel-release (temporary rule
+active) - paused + manual run + 7-day shadow vs comparator.
 
 ## 2-3. Ground truth, goals (unchanged from v0.2; read_only now enforced
 per above, not promised).
@@ -81,11 +80,11 @@ DECISION carries decision_id; replies are thread follow-ups
 
 ## 5. Job catalog (final)
 
-Core (7 schedules): runtime-paritet, wi-contract, governance-drift,
+Core (8 schedules): runtime-paritet, wi-contract, governance-drift,
 claim-watch + research-evidence (pair), vault-watch + vault-freshness
-(pair), sentinel-release (version-change watch + 1 temporary rule). Legacy-local (1):
-jobs/legacy/ag-legacy-noise-gate. Infra (1): ag-fabric-canary (monthly,
-no_agent).
+(pair), sentinel-release (version-change watch + 1 temporary rule). Infra (1):
+ag-fabric-canary (monthly, no_agent). Legacy-local (1):
+jobs/legacy/ag-legacy-noise-gate.
 
 ## 6. Interfaces (per jobs/*.yaml)
 

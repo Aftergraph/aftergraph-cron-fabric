@@ -2,15 +2,15 @@
 
 # Aftergraph Cron Fabric
 
-Status: Product baseline v0.3 - 9 schedules / 7 concerns. Phase 1 live proof complete (all 4 monitored jobs verified end-to-end as of 2026-09-08).
+Status: Product baseline v0.3 - 10 schedules / 7 concerns. Phase 1 live proof complete (all 4 monitored jobs verified end-to-end as of 2026-09-08).
 One-line: a small set of Telegram-first scheduled jobs that watch the Aftergraph org and only speak when there is something to act on.
 
 Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is owned by [Aftergraph/brand](https://github.com/Aftergraph/brand); this repo copies no logos or tokens. See [docs/brand.md](docs/brand.md).
 
 ## What it does
 
-Today the profile runs 14 live cron jobs (verified 2026-09-08) plus 9 fabric
-definitions (7 core schedules, 1 canary, 1 legacy-local). Noisy hourly
+Today the profile runs 14 live cron jobs (verified 2026-09-08) plus 10 fabric
+definitions (8 core schedules, 1 canary, 1 legacy-local). Noisy hourly
 watchdogs and 5-minute pollers have been retired; this repo provides the
 replacement fabric.
 

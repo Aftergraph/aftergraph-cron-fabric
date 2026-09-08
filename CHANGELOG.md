@@ -56,6 +56,6 @@
 
 ## [0.3.0] - 2026-09-08
 ### Changed
-- v0.3: 9 schedules / 7 concerns; typed evidence; cross-process
+- v0.3: 10 schedules / 7 concerns; typed evidence; cross-process
   semaphore; constrained_terminal boundary; canary job; sentinel-release
   replaces firetest-rot; Phase 0 + 3-way shadow acceptance.
