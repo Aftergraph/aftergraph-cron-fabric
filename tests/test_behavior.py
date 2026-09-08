@@ -801,8 +801,6 @@ for _name in SENSOR_NAMES_FOR_TEST:
           or "claim_event" in _t  # EventStore writes are allowed
           or "ReceiptWriter" in _t)
 
-print(f"\nBEHAVIOR-OK: {passed} checks")
-
 # 72. delivery canary fails closed on WRONG-FINGERPRINT receipt
 # (well-formed, self-consistent sha256, but bound to a different
 # fingerprint than the canary's claim -> receipt proves nothing about
@@ -839,3 +837,5 @@ check("delivery canary fails closed on wrong-fingerprint receipt",
       _r.returncode == 1
       and ("fingerprint" in _r.stdout.lower()
            or "mismatch" in _r.stdout.lower()))
+print(f"\nBEHAVIOR-OK: {passed} checks")
+
