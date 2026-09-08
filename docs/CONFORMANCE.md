@@ -46,7 +46,7 @@ mechanically with one command.
 | 14.1 | Cross-run dedupe: persistent per-sensor EventStore; repeat finding SILENCEs across runs | test_synthetic_fixtures: dedupe scenarios (merge-queue repeat, provenance repeat, freeze repeat) | python3 tests/test_synthetic_fixtures.py |
 | 14.2 | Observed recovery: stalled -> RESOLVED (HEALTHY) -> re-arm -> EMIT again | test_synthetic_fixtures: merge-queue resolved_then_rearm scenario | python3 tests/test_synthetic_fixtures.py |
 | 14.3 | Daily shadow summary receipt (immutable, one per day, no Telegram delivery) | scripts/v05_shadow_summary.py + jobs/ag-v05-shadow-summary.yaml + deploy/receipts/v05-shadow-summary-*.json (live, gitignored) | python scripts/v05_shadow_summary.py |
-| 14.4 | Telegram receipt bridge produces normative delivery receipts on positive renderer proof (chain: claim -> renderer -> receipt -> delivery canary verifies); NOT promoted to production delivery | scripts/telegram_receipt_bridge.py + docs/delivery-receipts-spec.md + offline chain proof | manual chain proof (tmp script) |
+| 14.4 | Telegram receipt bridge produces normative delivery receipts on positive renderer proof (chain: claim -> renderer -> receipt -> delivery canary verifies); NOT promoted to production delivery | scripts/telegram_receipt_bridge.py (build_receipt_body + write_delivery_receipt) + docs/delivery-receipts-spec.md + test_behavior: "bridge receipt accepted by delivery canary" + "chain fails closed on rebound bridge receipt" | python3 tests/test_behavior.py |
 
 ## Quick conformance check
 

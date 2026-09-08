@@ -81,6 +81,48 @@ def _key16(event_key, fingerprint):
         (event_key + "\0" + fingerprint).encode("utf-8")).hexdigest()[:16]
 
 
+def build_receipt_body(event_key, fingerprint, channel, message_id,
+                       renderer="telegram-live-status/statuscard",
+                       now=None):
+    """Build the normative receipt body (without writing anything).
+
+    Extracted so the offline chain test can prove the bridge's own
+    bytes pass the delivery canary - same constructor main() uses
+    after positive delivery proof, so the proof covers the real
+    writer instead of a test-side copy.
+    """
+    if now is None:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "Z"
+    body = {
+        "schema": DELIVERY_RECEIPT_SCHEMA,
+        "at": now,
+        "renderer": renderer,
+        "event_key": event_key,
+        "fingerprint": fingerprint,
+        "run_id": now,
+        "channel": channel,
+        "message_id": message_id,
+    }
+    body["sha256"] = _hash_payload(body)
+    return body
+
+
+def write_delivery_receipt(body, receipts_dir=None):
+    """Write an attested receipt to deploy/delivery-receipts/.
+
+    Returns the receipt path. Caller must already hold positive
+    delivery proof - this function attests, it does not prove.
+    """
+    target = Path(receipts_dir) if receipts_dir else DELIVERY_RECEIPTS_DIR
+    target.mkdir(parents=True, exist_ok=True)
+    out = target / \
+        f"delivery-{_key16(body['event_key'], body['fingerprint'])}.json"
+    out.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n",
+                   encoding="utf-8")
+    return out
+
+
 def _send_via_renderer(task_id, message, producer=None):
     """Send one card through the canonical renderer. We deliberately go
     through `hermes statuscard` (the plugin CLI) rather than shelling
@@ -141,24 +183,12 @@ def main():
         sys.exit(1)
 
     # Positive delivery proof: write the normative receipt.
-    DELIVERY_RECEIPTS_DIR.mkdir(parents=True, exist_ok=True)
     from datetime import datetime, timezone
     now = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%S") + "Z"
     message_id = f"statuscard-{args.task_id}-{now}"
-    body = {
-        "schema": DELIVERY_RECEIPT_SCHEMA,
-        "at": now,
-        "renderer": "telegram-live-status/statuscard",
-        "event_key": args.event_key,
-        "fingerprint": args.fingerprint,
-        "run_id": now,
-        "channel": args.channel,
-        "message_id": message_id,
-    }
-    body["sha256"] = _hash_payload(body)
-    out = DELIVERY_RECEIPTS_DIR / f"delivery-{_key16(args.event_key, args.fingerprint)}.json"
-    out.write_text(json.dumps(body, indent=2, sort_keys=True) + "\n",
-                   encoding="utf-8")
+    body = build_receipt_body(args.event_key, args.fingerprint,
+                              args.channel, message_id, now=now)
+    out = write_delivery_receipt(body)
     print(f"RECEIPT-BRIDGE-OK: {out.name} -> {args.channel}")
     sys.exit(0)
 

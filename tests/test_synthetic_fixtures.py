@@ -15,6 +15,7 @@ import shutil
 import subprocess
 import sys
 import tempfile
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -298,8 +299,13 @@ def test_merge_queue_stall_not_stalled_recent():
                 "mergeable": "MERGEABLE",
                 "mergeStateStatus": "BLOCKED",
                 "autoMergeRequest": {"enabledBy": {"login": "x"}},
-                # very recent -> well under 90 min
-                "updatedAt": "2026-09-08T16:30:00Z",
+                # 10 min ago relative to wall-clock: a hardcoded
+                # timestamp rots (age passes 90m and the sensor
+                # correctly EMITs). Relative time keeps the
+                # "recent -> no EMIT" contract deterministic.
+                "updatedAt": (datetime.now(timezone.utc) -
+                              timedelta(minutes=10)
+                              ).strftime("%Y-%m-%dT%H:%M:%SZ"),
                 "headRefOid": "0" * 40,
                 "statusCheckRollup": [
                     {"__typename": "CheckRun", "name": "v",
