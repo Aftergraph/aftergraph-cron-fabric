@@ -1,49 +1,52 @@
-"""v0.5.1 daily shadow summary runner.
+"""v0.5.1 daily shadow summary runner (receipt aggregator).
 
-Runs the four v0.5 P0 sensors once and writes ONE immutable daily
-summary receipt recording:
-    runs, EMIT, UPDATE, SILENCE, RESOLVED, SENSOR-DEGRADED,
-    crashes, duration p50/p95, duplicate count, projected
-    Telegram messages/day.
+Reads the immutable per-run receipts written by the four shadow
+sensor wrappers (deploy/receipts/ag-v05-shadow-<job>-*.json, see
+scripts/shadow_receipt.py) and writes ONE immutable daily summary
+receipt. It never re-runs sensors and never touches Telegram.
 
-The runner is designed to be invoked by the Hermes cron scheduler
-daily (shadow mode: Telegram delivery disabled, zero writes to
-observed systems, zero agent invocation).
+Window: the 24h ending now, clamped to >= shadow start (the
+earliest per-run receipt ever observed). Expected runs are derived
+mechanically from the cron intervals (merge-queue 2h -> 12/day,
+all others 6h -> 4/day each), prorated on the first partial day.
 
-Receipt schema (v05-shadow-summary/1):
+Receipt schema (v05-shadow-summary/2):
     {
-      "schema": "v05-shadow-summary/1",
-      "date": "YYYY-MM-DD",
-      "started_at": ISO,
-      "ended_at": ISO,
+      "schema": "v05-shadow-summary/2",
+      "date": "YYYY-MM-DD",          # UTC date of generation
+      "window_start": ISO, "window_end": ISO,
+      "shadow_started_at": ISO,      # earliest receipt observed
       "sensors": {
-        "<sensor>": {
-          "runs": int,
-          "returncode": int,
-          "classification": str,     # last line's classifier
-          "EMIT": int, "UPDATE": int, "SILENCE": int,
-          "RESOLVED": int, "SKIP": int,
-          "crashes": int,
-          "duration_s": float,
-          "agent_invoked": false,
-          "mutation_attempted": false
+        "<job>": {
+          "runs_expected": int, "runs_observed": int,
+          "missing_ticks": int,
+          "EMIT": int, "SILENCE": int, "DEGRADED": int, "CRASH": int,
+          "receipts_verified": int, "receipts_unverified": int,
+          "duration_p50_s": float, "duration_p95_s": float,
+          "agent_invoked": false, "mutation_attempted": false
         }
       },
       "aggregate": {
-        "total_runs": int, "total_emits": int,
-        "duplicate_count": int,     # EMITs for identical key+fp
-        "crashes": int,
-        "duration_p50_s": float, "duration_p95_s": float,
-        "projected_telegram_messages_per_day": int
+        "total_expected": int, "total_observed": int,
+        "total_emits": int, "duplicate_count": int,
+        "crashes": int, "unverified_receipts": int,
+        "projected_telegram_messages_per_day": int,
+        "verdict": "COMPLETE" | "INCOMPLETE",
+        "verdict_reasons": [str]
       }
     }
+
+duplicate_count is measured by the persistent EventStores / canary
+pair, not by receipts (receipts carry no event_key/fingerprint);
+it stays 0 here with that provenance noted. Fail-closed: a day
+with zero receipts is INCOMPLETE, never COMPLETE by default.
 """
+
 import json
 import os
 import statistics
-import subprocess
 import sys
-import time
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 
@@ -62,105 +65,195 @@ def _repo_root():
 
 
 REPO = _repo_root()
-SCRIPTS = REPO / "scripts" / "sensors"
+sys.path.insert(0, str(REPO / "scripts"))
+from shadow_receipt import FILENAME_PREFIX, verify_receipt  # noqa: E402
+
 RECEIPTS = REPO / "deploy" / "receipts"
 
-SENSOR_FILES = {
-    "ag-merge-queue-stall": "merge_queue_stall.py",
-    "ag-org-suite-liveness": "org_suite_liveness.py",
-    "ag-public-provenance": "public_provenance.py",
-    "ag-research-freeze-watch": "research_freeze_watch.py",
+INTERVALS = {
+    "ag-merge-queue-stall": 2 * 3600,
+    "ag-org-suite-liveness": 6 * 3600,
+    "ag-public-provenance": 6 * 3600,
+    "ag-research-freeze-watch": 6 * 3600,
 }
 
 
-def _parse_stdout(name, stdout):
-    """Classify sensor stdout into action counts."""
-    counts = {"EMIT": 0, "UPDATE": 0, "SILENCE": 0,
-              "RESOLVED": 0, "SKIP": 0}
-    prefix = name.split("-", 1)[-1].upper()  # e.g. MERGE-QUEUE-STALL
-    for line in stdout.splitlines():
-        for action in counts:
-            if f"-{action}:" in line:
-                counts[action] += 1
-    return counts
+def _parse_iso(s):
+    return datetime.fromisoformat(s)
 
 
-def main():
-    RECEIPTS.mkdir(parents=True, exist_ok=True)
-    date = time.strftime("%Y-%m-%d", time.gmtime())
-    receipt_path = RECEIPTS / f"v05-shadow-summary-{date}.json"
-    if receipt_path.exists():
-        # Immutable: never overwrite a prior day's receipt.
-        print(f"SHADOW-SUMMARY-OK: receipt already exists for {date}, "
-              f"skipping (immutable receipts)")
-        sys.exit(0)
+def _p50_p95(values):
+    if not values:
+        return 0.0, 0.0
+    ordered = sorted(values)
+    p50 = round(statistics.median(ordered), 3)
+    p95 = round(ordered[min(len(ordered) - 1, int(len(ordered) * 0.95))], 3)
+    return p50, p95
 
-    report = {
-        "schema": "v05-shadow-summary/1",
-        "date": date,
-        "started_at": time.strftime("%Y-%m-%dT%H:%M:%SZ",
-                                    time.gmtime()),
-        "sensors": {},
-    }
 
-    durations = []
-    total_runs = 0
+def summarize(repo_root, now=None):
+    """Aggregate per-run receipts into a summary report dict."""
+    repo = Path(repo_root)
+    now = now or datetime.now(timezone.utc)
+    window_end = now
+    window_start = now - timedelta(hours=24)
+
+    receipts_dir = repo / "deploy" / "receipts"
+    runs = []  # (job, parsed_receipt, verified_bool)
+    earliest = None
+    if receipts_dir.is_dir():
+        for path in sorted(receipts_dir.glob(f"{FILENAME_PREFIX}*.json")):
+            try:
+                parsed = json.loads(path.read_text(encoding="utf-8"))
+            except (json.JSONDecodeError, OSError):
+                continue
+            job = parsed.get("job")
+            if job not in INTERVALS:
+                continue
+            try:
+                started = _parse_iso(parsed["started_at"])
+                ended = _parse_iso(parsed["ended_at"])
+            except (KeyError, ValueError):
+                continue
+            if earliest is None or started < earliest:
+                earliest = started
+            if ended < window_start or ended > window_end:
+                continue
+            try:
+                verified = verify_receipt(path)
+            except Exception:
+                verified = False
+            runs.append((job, parsed, verified))
+
+    shadow_start = earliest or window_start
+    effective_start = max(window_start, shadow_start)
+    window_seconds = max(0.0, (window_end - effective_start).total_seconds())
+
+    sensors = {}
+    total_expected = 0
+    total_observed = 0
     total_emits = 0
     total_crashes = 0
-    for name, script in SENSOR_FILES.items():
-        start = time.time()
-        proc = subprocess.run(
-            [sys.executable, str(SCRIPTS / script)],
-            capture_output=True, text=True, timeout=180,
-            cwd=str(REPO))
-        duration = time.time() - start
-        durations.append(duration)
-        counts = _parse_stdout(name, proc.stdout)
-        crashed = proc.returncode != 0
-        report["sensors"][name] = {
-            "runs": 1,
-            "returncode": proc.returncode,
-            "classification": counts,
-            "crashes": 1 if crashed else 0,
-            "duration_s": round(duration, 3),
-            "stdout_tail": proc.stdout[-400:] if proc.stdout else "",
-            "stderr_tail": proc.stderr[-400:] if proc.stderr else "",
+    total_unverified = 0
+    for job, interval in INTERVALS.items():
+        job_runs = [(p, v) for (j, p, v) in runs if j == job]
+        expected = int(window_seconds // interval)
+        observed = len(job_runs)
+        counts = {"EMIT": 0, "SILENCE": 0, "DEGRADED": 0, "CRASH": 0}
+        verified = 0
+        unverified = 0
+        durations = []
+        for parsed, ok in job_runs:
+            cls = parsed.get("classification", "CRASH")
+            counts[cls if cls in counts else "CRASH"] += 1
+            if ok:
+                verified += 1
+            else:
+                unverified += 1
+            if isinstance(parsed.get("duration_s"), (int, float)):
+                durations.append(parsed["duration_s"])
+        p50, p95 = _p50_p95(durations)
+        sensors[job] = {
+            "runs_expected": expected,
+            "runs_observed": observed,
+            "missing_ticks": max(0, expected - observed),
+            **counts,
+            "receipts_verified": verified,
+            "receipts_unverified": unverified,
+            "duration_p50_s": p50,
+            "duration_p95_s": p95,
             "agent_invoked": False,
             "mutation_attempted": False,
         }
-        total_runs += 1
+        total_expected += expected
+        total_observed += observed
         total_emits += counts["EMIT"]
-        total_crashes += 1 if crashed else 0
+        total_crashes += counts["CRASH"]
+        total_unverified += unverified
 
-    # Duplicate detection: an EMIT for an event key whose fingerprint
-    # was already EMITted earlier the same day would appear in the
-    # persistent stores. We approximate duplicates by re-parsing the
-    # per-sensor persistent EventStore: any key with state=OPEN whose
-    # opened_at == updated_at twice in one day is a potential dup.
-    # This is conservative and cheap.
-    duplicate_count = 0  # measured properly by canary pair; see docs
+    reasons = []
+    if total_observed == 0:
+        reasons.append("no per-run receipts in window (fail-closed)")
+    missing = sum(s["missing_ticks"] for s in sensors.values())
+    if missing:
+        reasons.append(f"{missing} expected ticks missing")
+    if total_crashes:
+        reasons.append(f"{total_crashes} crashed runs")
+    if total_unverified:
+        reasons.append(f"{total_unverified} unverified receipts")
+    if not reasons and window_seconds < 20 * 3600:
+        # A short window (e.g. shadow start day) can have nothing
+        # missing yet still prove nothing about a full day. It must
+        # never read as COMPLETE at acceptance time.
+        return {
+            "schema": "v05-shadow-summary/2",
+            "date": window_end.strftime("%Y-%m-%d"),
+            "window_start": effective_start.isoformat(),
+            "window_end": window_end.isoformat(),
+            "shadow_started_at": shadow_start.isoformat(),
+            "sensors": sensors,
+            "aggregate": {
+                "total_expected": total_expected,
+                "total_observed": total_observed,
+                "total_emits": total_emits,
+                "duplicate_count": 0,
+                "crashes": total_crashes,
+                "unverified_receipts": total_unverified,
+                "projected_telegram_messages_per_day": total_emits,
+                "verdict": "PARTIAL",
+                "verdict_reasons": [
+                    f"window covers only "
+                    f"{round(window_seconds / 3600, 1)}h (<20h): "
+                    f"shadow start day, not a full observation day",
+                ],
+            },
+        }
+    verdict = "COMPLETE" if not reasons else "INCOMPLETE"
 
-    p50 = round(statistics.median(durations), 3) if durations else 0.0
-    p95 = round(sorted(durations)[int(len(durations) * 0.95)]
-                if durations else 0.0, 3)
-
-    report["ended_at"] = time.strftime("%Y-%m-%dT%H:%M:%SZ",
-                                       time.gmtime())
-    report["aggregate"] = {
-        "total_runs": total_runs,
-        "total_emits": total_emits,
-        "duplicate_count": duplicate_count,
-        "crashes": total_crashes,
-        "duration_p50_s": p50,
-        "duration_p95_s": p95,
-        "projected_telegram_messages_per_day": total_emits,
+    return {
+        "schema": "v05-shadow-summary/2",
+        "date": window_end.strftime("%Y-%m-%d"),
+        "window_start": effective_start.isoformat(),
+        "window_end": window_end.isoformat(),
+        "shadow_started_at": shadow_start.isoformat(),
+        "sensors": sensors,
+        "aggregate": {
+            "total_expected": total_expected,
+            "total_observed": total_observed,
+            "total_emits": total_emits,
+            # Provenance: persistent EventStores / canary pair, not
+            # receipts (receipts carry no event_key/fingerprint).
+            "duplicate_count": 0,
+            "crashes": total_crashes,
+            "unverified_receipts": total_unverified,
+            "projected_telegram_messages_per_day": total_emits,
+            "verdict": verdict,
+            "verdict_reasons": reasons,
+        },
     }
 
+
+def main():
+    global RECEIPTS
+    RECEIPTS = REPO / "deploy" / "receipts"
+    RECEIPTS.mkdir(parents=True, exist_ok=True)
+    now = datetime.now(timezone.utc)
+    date = now.strftime("%Y-%m-%d")
+    receipt_path = RECEIPTS / f"v05-shadow-summary-{date}.json"
+    if receipt_path.exists():
+        # Immutable: never overwrite a prior receipt for this date.
+        print(f"SHADOW-SUMMARY-OK: receipt already exists for {date}, "
+              f"skipping (immutable receipts)")
+        sys.exit(0)
+    report = summarize(REPO, now)
+    agg = report["aggregate"]
     receipt_path.write_text(
         json.dumps(report, indent=2, sort_keys=True) + "\n",
         encoding="utf-8")
     print(f"SHADOW-SUMMARY-OK: {receipt_path.name} "
-          f"emits={total_emits} crashes={total_crashes}")
+          f"verdict={agg['verdict']} "
+          f"observed={agg['total_observed']}/{agg['total_expected']} "
+          f"emits={agg['total_emits']} crashes={agg['crashes']}")
     sys.exit(0)
 
 
