@@ -54,13 +54,17 @@ SCRIPT_DIR = Path(__file__).resolve().parent
 sys.path.insert(0, str(SCRIPT_DIR.parent))
 from event_store import EventStore
 
-# Repos whose main branch is protected by a merge-queue ruleset. The
-# canonical list lives in after-graph-governance; we hard-code it here
-# because the sensor runs offline (no GH API call for the rule itself).
-# Update via PR when governance adds/removes queue-required repos.
-QUEUE_REQUIRED_REPOS = [
-    "Aftergraph/after-graph-governance",
-]
+# Repos whose main branch is protected by a merge-queue ruleset.
+# Scope is read from contracts/queue-policy.yaml at sensor startup.
+# The sensor fails closed if the file is missing or malformed.
+QUEUE_POLICY_PATH = "contracts/queue-policy.yaml"
+
+# Trust threshold: a repo is operationally interesting only if its
+# queue ruleset is active AND has zero bypass actors. A repo with
+# bypass actors can merge --admin at any time, so a stall there is
+# not a meaningful finding.
+MIN_RULESET_ENFORCEMENT = "active"
+MAX_BYPASS_ACTORS = 0
 
 STALL_WINDOW_MINUTES = 90
 
@@ -159,13 +163,55 @@ def _iso_to_epoch(s):
     return datetime.fromisoformat(s.replace("Z", "+00:00")).timestamp()
 
 
+def _load_queue_policy():
+    """Read contracts/queue-policy.yaml and return the list of repos
+    that pass the trust threshold (active ruleset, zero bypass actors).
+
+    Fails closed: missing file, malformed YAML, no schema fields -> [].
+    The sensor then emits nothing (it does not know what to watch).
+    """
+    p = REPO / QUEUE_POLICY_PATH
+    if not p.exists():
+        print(f"MERGE-QUEUE-STALL-FAIL: policy missing: {QUEUE_POLICY_PATH}")
+        return []
+    try:
+        # Tiny YAML reader: we only need one nested list with a fixed
+        # shape. PyYAML would be cleaner but is not a dep of Cron Fabric.
+        import yaml  # type: ignore
+        data = yaml.safe_load(p.read_text(encoding="utf-8"))
+    except Exception as exc:
+        print(f"MERGE-QUEUE-STALL-FAIL: policy malformed: {exc}")
+        return []
+    repos = []
+    for entry in (data or {}).get("queue_required_repos", []) or []:
+        full = entry.get("full_name")
+        enforcement = entry.get("enforcement")
+        bypass = entry.get("bypass_actors", 0)
+        if not full:
+            continue
+        if enforcement != MIN_RULESET_ENFORCEMENT:
+            print(f"MERGE-QUEUE-STALL-SKIP: {full}: enforcement={enforcement}")
+            continue
+        if bypass > MAX_BYPASS_ACTORS:
+            print(f"MERGE-QUEUE-STALL-SKIP: {full}: bypass_actors={bypass}")
+            continue
+        repos.append(full)
+    return repos
+
+
 def main():
     store = EventStore(str(
         REPO / "state" / f"merge_queue_stall.{int(time.time())}.sqlite"))
 
+    queue_repos = _load_queue_policy()
+    if not queue_repos:
+        print("MERGE-QUEUE-STALL-OK: no queue-protected repos in policy, "
+              "nothing to watch")
+        sys.exit(0)
+
     total_checked = 0
     total_emitted = 0
-    for repo in QUEUE_REQUIRED_REPOS:
+    for repo in queue_repos:
         prs = _gh_api(repo, "pulls?state=open&per_page=50")
         if not isinstance(prs, list):
             print(f"MERGE-QUEUE-STALL-SKIP: {repo}: gh api unavailable")

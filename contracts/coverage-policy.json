@@ -5,6 +5,33 @@
     "path": "docs/platform-topology/1.0.json"
   },
   "principle": "Cron Fabric observes topology roles; it does not duplicate repository identity or grant authority.",
+  "principle_v05": "v0.5 adds four fabric concern sensors (Truth / Liveness / Provenance / Research-freeze). Each sensor reads its scope from a canonical machine-readable policy under contracts/ — no sensor code may hardcode repository lists.",
+  "fabric_concerns": {
+    "truth_queue_integrity": {
+      "policy": "contracts/queue-policy.yaml",
+      "sensor": "ag-merge-queue-stall",
+      "schedule": "every 2h",
+      "disposition": "notify_on_stall"
+    },
+    "org_suite_liveness": {
+      "policy": "module-level CORE_REPOS in scripts/sensors/org_suite_liveness.py (overridable when org suite is canonically published elsewhere)",
+      "sensor": "ag-org-suite-liveness",
+      "schedule": "every 6h",
+      "disposition": "notify_on_degraded_or_missed"
+    },
+    "public_provenance": {
+      "policy": "contracts/sources.yaml (PROVENANCE_PAIRS in sensor)",
+      "sensor": "ag-public-provenance",
+      "schedule": "every 6h",
+      "disposition": "notify_on_stale_pin"
+    },
+    "research_freeze_integrity": {
+      "policy": "contracts/freeze-manifest.yaml + contracts/freeze-amendments.yaml",
+      "sensor": "ag-research-freeze-watch",
+      "schedule": "every 6h",
+      "disposition": "notify_on_breach_without_amendment"
+    }
+  },
   "concerns": {
     "org_truth": {
       "roles": [

@@ -1,0 +1,51 @@
+# P1/P2 scope-lock.
+#
+# This file is a SCOPE-LOCK, not a roadmap. The jobs listed below are
+# EXPLICITLY GATED until their prerequisites are real:
+#
+#   - live correlation/evidence surfaces (Mission Engine, Authority,
+#     Works, Evidence, Verification) must exist and be observable.
+#
+# Cron Fabric v0.5 proves four P0 "fabric concern" sensors. v0.6+ will
+# require a separate READY_FOR_V06 verdict before any of these jobs
+# may be added to jobs/.
+#
+# DO NOT ADD jobs for the names below without a v0.6 readiness report
+# that satisfies:
+#   1. v0.5 shadow rollout passed (READY_FOR_SHADOW in 7 consecutive
+#      days with no degradation in EMIT-rate or noise floor).
+#   2. Live correlation surface is canonically documented in
+#      after-graph-governance/docs/cross-repo-contracts.md.
+#   3. ARI canonical semantics exist for any "ARI" claim the job would
+#      surface.
+#
+# Each gate has a checklist the next operator can audit.
+
+gated_jobs:
+  - name: ag-mission-orphan-watch
+    reason: >
+      Requires Mission Engine + Works evidence surface to be canonically
+      observable. Not yet a cross-repo contract.
+  - name: ag-verification-gap-watch
+    reason: >
+      Requires the (Mission, Evidence, Verification) tuple to be
+      exposed and queryable. Continuum emits this but it is not yet
+      a stable read-side.
+  - name: ag-authority-lease-watch
+    reason: >
+      Requires AIE authority/lease to be observable from Cron Fabric.
+      Trust Gateway emits it but the read-side contract is not
+      frozen.
+  - name: ag-release-intelligence
+    reason: >
+      Requires Aftergraph 26 / APC / ARI canonical to be a single
+      cross-repo contract. Currently three separate plans.
+  - name: ag-continuity-regression
+    reason: >
+      Requires a stable actionable-context portability surface in
+      context-continuity. Continuum tests fault injection; portability
+      is not yet a read API.
+  - name: ag-economic-drift
+    reason: >
+      Requires CPVO/CPT/budget efficiency numbers to be measured from
+      actual verified outcomes. No such measurements exist yet.

@@ -1,0 +1,20 @@
+# Research freeze manifest.
+#
+# Preregistered research artifacts whose SHA is supposed to be
+# immutable once registered. A drift without a corresponding entry in
+# contracts/freeze-amendments.yaml is a RESEARCH-FREEZE-BREACH.
+#
+# Update by adding entries here with a baseline preregistration SHA.
+# An amendment entry must be added to contracts/freeze-amendments.yaml
+# BEFORE intentionally mutating any artifact listed below.
+#
+# Schema:
+#   - repo: Aftergraph/<repo>
+#     path: <path inside repo>
+#     preregistration_sha: "<full 40-hex SHA>"
+#
+# The repo currently ships with NO frozen entries. As research
+# programs move to preregistration discipline (study011 lockfile is
+# the canonical pattern), entries will be added here.
+
+# (empty by design — sensor reports nothing until an entry exists)

@@ -1,0 +1,17 @@
+# Research freeze amendments.
+#
+# Each entry records an authorised mutation to an artifact listed in
+# contracts/freeze-manifest.yaml. The sensor cross-references the
+# preregistration SHA and the current SHA; if either appears here,
+# the drift is covered and is NOT a breach.
+#
+# Schema:
+#   - repo: Aftergraph/<repo>
+#     path: <path>
+#     preregistration_sha: "<original 40-hex>"
+#     new_sha: "<current 40-hex>"
+#     reason: <short human note>
+#     authorised_by: <name>
+#     authorised_at: <ISO date>
+
+# (empty by design)

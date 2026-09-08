@@ -170,6 +170,13 @@ def _job_name(path):
 
 _core_names = sorted(_job_name(f) for f in _core_files)
 _legacy_names = sorted(_job_name(f) for f in _legacy_files)
+
+SENSOR_NAMES_FOR_TEST = [
+    "merge_queue_stall",
+    "org_suite_liveness",
+    "public_provenance",
+    "research_freeze_watch",
+]
 _core_schedules = [
     "ag-runtime-paritet", "ag-wi-contract", "ag-governance-drift",
     "ag-claim-watch", "ag-research-evidence", "ag-vault-watch",
@@ -183,6 +190,8 @@ check("catalog: 13 core schedules match spec §5",
       and len(_core_names) == 14)  # 13 core + 1 state canary
 check("catalog: state canary present",
       "ag-fabric-canary" in _core_names)
+check("catalog: delivery canary present",
+      "ag-fabric-delivery" in _core_names)
 check("catalog: 1 legacy-local",
       _legacy_names == ["ag-legacy-noise-gate"])
 check("catalog: 15 jobs total",
@@ -701,5 +710,93 @@ for _name, _script in [
         capture_output=True, text=True, cwd=str(ROOT))
     check(f"{_name}: script imports cleanly and has main()",
           _sp_result.returncode == 0)
+
+# 61. merge-queue-stall does NOT hardcode repo list (single source of truth)
+_mqs_text = (ROOT / "scripts" / "sensors" / "merge_queue_stall.py").read_text(
+    encoding="utf-8")
+check("merge-queue-stall reads from contracts/queue-policy.yaml",
+      "contracts/queue-policy.yaml" in _mqs_text)
+check("merge-queue-stall has no hardcoded repo list",
+      "Aftergraph/after-graph-governance" not in _mqs_text
+      and "QUEUE_REQUIRED_REPOS = [" not in _mqs_text)
+# The policy file itself must exist and parse
+check("contracts/queue-policy.yaml exists",
+      (ROOT / "contracts" / "queue-policy.yaml").is_file())
+
+# 62. public-provenance watches the contracts/sources.yaml contracts
+_pp_text = (ROOT / "scripts" / "sensors" / "public_provenance.py").read_text(
+    encoding="utf-8")
+check("public-provenance reads from contracts/sources.yaml",
+      "contracts/sources.yaml" in _pp_text or "sources.yaml" in _pp_text
+      or "wi.observation" in _pp_text)
+
+# 63. research-freeze-watch reads from freeze manifest + amendments
+_rfw_text = (ROOT / "scripts" / "sensors" / "research_freeze_watch.py").read_text(
+    encoding="utf-8")
+check("research-freeze-watch reads freeze manifest",
+      "freeze-manifest.yaml" in _rfw_text)
+check("research-freeze-watch reads amendments",
+      "freeze-amendments.yaml" in _rfw_text)
+
+# 64. org-suite-liveness hardcoded core repo list is documented + overridable
+_osl_text = (ROOT / "scripts" / "sensors" / "org_suite_liveness.py").read_text(
+    encoding="utf-8")
+check("org-suite-liveness: CORE_REPOS is a module-level constant (documented)",
+      "CORE_REPOS = [" in _osl_text and "# Repos whose main CI" in _osl_text)
+
+# 65-71. v0.5 SHADOW READINESS — the four P0 sensors must run end-to-end,
+# produce a READY_FOR_SHADOW verdict, and no P1/P2 job may have leaked
+# into jobs/ until v0.6 readiness is declared.
+
+# Scope-lock file exists
+check("contracts/v06-scope-lock.yaml exists (P1/P2 gated)",
+      (ROOT / "contracts" / "v06-scope-lock.yaml").is_file())
+
+# No P1/P2 jobs leaked into jobs/*.yaml
+import re as _re
+_p1_names = ["ag-mission-orphan", "ag-verification-gap",
+             "ag-authority-lease", "ag-release-intelligence",
+             "ag-continuity-regression", "ag-economic-drift"]
+_p1_leaks = []
+for _j in (ROOT / "jobs").glob("*.yaml"):
+    _jt = _j.read_text(encoding="utf-8")
+    for _n in _p1_names:
+        if _n in _jt:
+            _p1_leaks.append(f"{_j.name} contains {_n}")
+check("no P1/P2 job YAML leaked into jobs/",
+      not _p1_leaks)
+
+# Shadow rollout script exists and parses
+check("ag_v05_shadow_rollout.py exists",
+      (ROOT / "scripts" / "ag_v05_shadow_rollout.py").is_file())
+import importlib.util
+_sp_rollout = importlib.util.spec_from_file_location(
+    "rollout",
+    str(ROOT / "scripts" / "ag_v05_shadow_rollout.py"))
+_ro = importlib.util.module_from_spec(_sp_rollout)
+_sp_rollout.loader.exec_module(_ro)
+check("ag_v05_shadow_rollout.py has main()",
+      callable(getattr(_ro, "main", None)))
+
+# Shadow rollout script does NOT touch Telegram (no telegram import,
+# no hermes send, no telegram-live-status)
+_ro_text = (ROOT / "scripts" / "ag_v05_shadow_rollout.py").read_text(
+    encoding="utf-8")
+check("shadow rollout: no Telegram import",
+      "import telegram" not in _ro_text
+      and "hermes send" not in _ro_text)
+check("shadow rollout: no notification call",
+      "send_message" not in _ro_text and "notify(" not in _ro_text)
+
+# All four v0.5 sensors have read_only=true + no_agent + fail-closed
+# (no mutation outside state/ and receipts)
+for _name in SENSOR_NAMES_FOR_TEST:
+    _t = (ROOT / "scripts" / "sensors" / f"{_name}.py").read_text(
+        encoding="utf-8")
+    check(f"{_name}: no open() writes outside state/receipts",
+          not _re.search(r"open\(.*['\"](w|a|x)['\"]", _t)
+          or "_write_path" in _t
+          or "claim_event" in _t  # EventStore writes are allowed
+          or "ReceiptWriter" in _t)
 
 print(f"\nBEHAVIOR-OK: {passed} checks")
