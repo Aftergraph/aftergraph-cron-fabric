@@ -131,6 +131,54 @@ check("continuity allowlist matches spec #5",
       NO_CONTINUITY == {"ag-claim-watch", "ag-vault-watch",
                         "ag-sentinel-release", "ag-legacy-noise-gate"})
 
+# 11. verify_tick.py: suppressed slot must FAIL, healthy slot must PASS
+import sqlite3 as _sql, json as _json
+import subprocess as _sp
+from datetime import datetime as _datetime, timezone as _timezone
+_tickdir = Path(_tmp, "tick")
+_tickdir.mkdir()
+_jobs = _tickdir / "jobs.json"
+_db = _tickdir / "executions.db"
+_out = _tickdir / "out"
+_out.mkdir()
+# suppressed case: next_run_at == slot (never advanced), empty executions
+_slot = "2026-08-09T09:00:00+02:00"
+_slot_epoch = _datetime.fromisoformat(_slot).astimezone(
+    _timezone.utc).timestamp()
+_jobs.write_text(_json.dumps([{"name": "ag-sentinel-release", "enabled": True,
+                               "next_run_at": _slot}]), encoding="utf-8")
+_con = _sql.connect(str(_db))
+_con.execute("CREATE TABLE executions (id TEXT, job_id TEXT, source TEXT, "
+             "status TEXT, scheduled_instant TEXT, started_at REAL, "
+             "finished_at REAL)")
+_con.commit(); _con.close()
+_r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_tick.py"),
+              "--jobs-json", str(_jobs), "--executions-db", str(_db),
+              "--output-dir", str(_out), "--job-name", "ag-sentinel-release",
+              "--job-id", "j1", "--slot", _slot],
+             capture_output=True, text=True, cwd=str(ROOT))
+check("tick verify FAILs on suppressed slot", _r.returncode == 1
+      and "unconsumed" in _r.stdout)
+# healthy case: next_run advanced, completed scheduler execution with
+# matching scheduled_instant, output file present
+_jobs.write_text(_json.dumps([{"name": "ag-sentinel-release", "enabled": True,
+                               "next_run_at": "2026-09-10T09:00:00+02:00"}]),
+                 encoding="utf-8")
+_con = _sql.connect(str(_db))
+_con.execute("INSERT INTO executions VALUES"
+             "('e1','j1','scheduler','completed',"
+             "'2026-08-09T07:00:00+00:00', ?, ?)",
+             (_slot_epoch + 60, _slot_epoch + 300))
+_con.commit(); _con.close()
+(_out / "2026-09-09_09-00-00.md").write_text("EMIT\n", encoding="utf-8")
+_r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_tick.py"),
+              "--jobs-json", str(_jobs), "--executions-db", str(_db),
+              "--output-dir", str(_out), "--job-name", "ag-sentinel-release",
+              "--job-id", "j1", "--slot", _slot],
+             capture_output=True, text=True, cwd=str(ROOT))
+check("tick verify PASSes consumed slot", _r.returncode == 0
+      and "TICK-VERIFIED" in _r.stdout)
+
 print(f"\nBEHAVIOR-OK: {passed} checks")
 
 

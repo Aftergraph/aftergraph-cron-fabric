@@ -104,7 +104,7 @@ across processes; tokens read-only scoped at rollout (Phase 0 item).
 
 ## 8. Testing
 
-validate.py (10 jobs) + test_behavior.py (25 checks) + canary.py
+validate.py (10 jobs) + test_behavior.py (27 checks) + canary.py
 self-test. CI runs all three. Output schema: typed evidence on every
 notify+ (require_typed_evidence).
 
