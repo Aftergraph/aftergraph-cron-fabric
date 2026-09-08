@@ -26,3 +26,4 @@ deploy/receipts/v05-shadow-summary-*.json
 Thumbs.db
 *.log
 .venv/
+deploy/receipts/ag-fabric-delivery-*.json
