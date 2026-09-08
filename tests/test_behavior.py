@@ -147,7 +147,10 @@ check("record writes receipt", _rec.returncode == 0
       and _data["job_id"] == "test-job-id"
       and len(_data["config_hash"]) == 12)
 _receipt.unlink()
-_receipt.parent.rmdir()
-_receipt.parent.parent.rmdir()
+try:
+    _receipt.parent.rmdir()
+    _receipt.parent.parent.rmdir()
+except OSError:
+    pass  # other receipts exist; never tear down shared dirs
 
 print(f"\nBEHAVIOR-OK: {passed} checks")
