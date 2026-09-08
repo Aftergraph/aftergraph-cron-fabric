@@ -9,10 +9,10 @@ Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is ow
 
 ## What it does
 
-Today the profile runs 14 live cron jobs (verified 2026-09-08) plus 10 fabric
-definitions (8 core schedules, 1 canary, 1 legacy-local). Noisy hourly
-watchdogs and 5-minute pollers have been retired; this repo provides the
-replacement fabric.
+Today the profile runs 13 enabled cron jobs (verified 2026-09-08 11:15
+from jobs.json) plus 10 fabric definitions (8 core schedules, 1 canary,
+1 legacy-local). Noisy hourly watchdogs and 5-minute pollers have been
+retired; this repo provides the replacement fabric.
 
 ## Tech stack
 
