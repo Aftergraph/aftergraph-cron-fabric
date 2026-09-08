@@ -8,6 +8,10 @@ state/
 # run would spam history). Hand-recorded evidence receipts (e.g.
 # deploy/receipts/ag-sentinel-release.json) stay tracked deliberately.
 deploy/receipts/ag-fabric-canary-*.json
+# Delivery canary receipts: per-run, sha256-attested artifacts produced by
+# the external Telegram renderer (or the --synthesize-receipt test path).
+# Same rule as state canary receipts: never committed; live evidence only.
+deploy/delivery-receipts/
 .env
 .DS_Store
 Thumbs.db

@@ -53,6 +53,13 @@ EventStore. It does **not** prove scheduler -> transport -> Telegram
 exactly-once delivery. That claim stays open until a receipt-observing delivery
 canary can verify the external delivery path.
 
+`ag-fabric-delivery` is the **delivery canary** pair: it observes a
+sha256-attested Telegram-renderer delivery receipt under
+`deploy/delivery-receipts/`, keyed deterministically by
+`event_key + fingerprint`. Together the pair proves:
+- atomic claim / silence / resolve / re-arm (state canary)
+- external receipt written + sha256 verified + replay SILENCE (delivery canary)
+
 ## How to deploy
 
 Phase 0: reconcile live cron, baseline volumes, scope read-only tokens.

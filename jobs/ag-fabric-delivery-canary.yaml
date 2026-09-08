@@ -1,0 +1,25 @@
+name: ag-fabric-delivery
+schedule: every month on the 1st at 9am
+deliver: telegram-ops-topic
+severity: info
+allowed_dispositions: [store, digest]
+read_only: true
+mode: no_agent
+job_type: script_only
+detection_slo: {p50_max: 24h, p95_max: 48h}
+rollback: cronjob_manage update job_id pause (list first)
+script: scripts/sensors/delivery_canary.py
+# Delivery canary: observes a sha256-attested Telegram-renderer
+# delivery receipt under deploy/delivery-receipts/ and proves the
+# scheduler -> transport -> Telegram exactly-once path.
+#
+# Pair of ag-fabric-canary (state canary, EventStore only):
+#   ag-fabric-canary  -> atomic claim / silence / resolve / re-arm
+#   ag-fabric-delivery -> claim -> receipt observed -> sha verified
+#                        -> replay SILENCE (no double-emit)
+#
+# Production runs MUST NOT pass --synthesize-receipt. The Telegram
+# renderer writes the receipt out of process; this canary only reads.
+# --synthesize-receipt exists for end-to-end test paths under
+# tests/test_behavior.py and the on-demand operator probe.
+# Schedule is offset (9:30 vs 9:00) so the two canaries do not collide.
