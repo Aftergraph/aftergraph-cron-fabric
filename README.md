@@ -82,6 +82,7 @@ scripts/sensors/        # cheap deterministic pre-checks + state canary + delive
 contracts/sources.yaml  # canonical artifact owners and concrete mirrors
 docs/architecture.md    # sensor -> state -> dedupe -> evidence -> Telegram
 docs/delivery-receipts-spec.md # normative contract for what a Telegram renderer must write so the delivery canary can verify it
+docs/canary-pair-architecture.md # state + delivery as one invariant; why neither canary alone proves scheduler -> transport -> Telegram
 docs/brand.md           # brand contract
 CHATGPT-REVIEW-SPEC.md  # reviewable spec
 CHANGELOG.md SECURITY.md CONTRIBUTING.md CODEOWNERS .env.example

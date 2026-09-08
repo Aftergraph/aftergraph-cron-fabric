@@ -36,6 +36,7 @@ mechanically with one command.
 | 10.3 | Ack re-arms event (not permanent freeze) | test_behavior: "resolve closes" + "return EMITs again" + event_store.py | python3 tests/test_behavior.py |
 | 11 | Delivery receipt contract (sha256-attested, deterministic filename) | docs/delivery-receipts-spec.md + delivery_canary.py self-test + test_behavior: "delivery canary self-test with synthetic receipt" | python3 tests/test_behavior.py |
 | 11 | Delivery canary fails closed (no receipt / tampered sha / wrong fingerprint) | test_behavior: 3 fail-closed checks | python3 tests/test_behavior.py |
+| 12 | Canary pair as one invariant (state proves local, delivery proves external, neither alone sufficient) | docs/canary-pair-architecture.md + both canary scripts + receipt specs | n/a (architectural doc) |
 
 ## Quick conformance check
 
