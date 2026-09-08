@@ -163,21 +163,26 @@ today was verified today: D2 audit (read_only + no_agent x5,
 GET-only via gh-read.sh, no secrets), D6 (0 EMIT -> 0/day),
 PR queue drained to zero.
 
-## D12. Parallel fleet work in the shared tree
+## D12. Parallel fleet work (corrected: merged as #23)
 
-A sibling instance wrote scripts/ag_fleet_status.py + fleet
-tests into this checkout mid-session, then rolled them back.
+A parallel track wrote scripts/ag_fleet_status.py + 71 lines of
+fleet tests into this checkout mid-session. I first misread its
+disappearance as a rollback - in fact my checkout was stale; the
+work merged to main as #23 (119 checks) at 23:52 while I was on
+an older base.
 
-Options: (a) integrate on sight; (b) delete as scope risk;
-(c) touch neither, review on merit if it returns as a PR.
+Options were: (a) integrate on sight; (b) delete; (c) leave for
+PR review. Reality decided: it landed as #23 with tests
+(dry-run aggregation, EMIT/WARN, tamper fail-closed) before this
+note was written.
 
-Debate: (a) commits unauthored Telegram-sending code during
-shadow silence. (b) destroys another worker's output the owner
-may have asked for.
-
-Choice: (c). Noted, not committed, not deleted. If it returns:
-requires tests + scope review + no Telegram from shadow before
-a production decision exists.
+Remaining standing concern, narrowed: the script CAN invoke
+`hermes statuscard --to telegram:Jonas` on a live run, but no
+job YAML and no cron registration exist for it, so nothing
+scheduled sends - shadow silence holds. If it is ever
+scheduled, that scheduling is a production-routing decision,
+not a code detail. Verified this session: jobs/ has no fleet
+file, cron has no fleet entry.
 
 ## D13. Day-1 verifier prompt left as-is
 
