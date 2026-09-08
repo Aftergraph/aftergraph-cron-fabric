@@ -9,6 +9,6 @@ job_type: script_only
 detection_slo: {p50_max: 24h, p95_max: 48h}
 rollback: cronjob_manage update job_id pause (list first)
 script: scripts/sensors/canary.py
-# External to the jobs it tests. Injects one synthetic event into the
-# fabric canary namespace, then verifies: exactly one Telegram emission
-# and one RESOLVED lifecycle. Always evidence.type=synthetic_canary.
+# State-canary only: proves atomic EventStore claim/dedupe/resolution/re-arm.
+# It does NOT claim scheduler -> transport -> Telegram exactly-once delivery.
+# A separate receipt-observing delivery canary is required for that claim.

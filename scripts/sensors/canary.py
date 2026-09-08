@@ -1,15 +1,15 @@
-"""Monthly synthetic canary (no-agent). Injects one synthetic event,
-verifies exactly one emission + one RESOLVED lifecycle. Nonzero exit
-or unexpected counts = monitor failure (visible)."""
+"""Fabric state canary (no-agent).
+
+Verifies the local EventStore lifecycle only: atomic EMIT claim, repeated
+SILENCE, observed RESOLVED/HEALTHY transition, and re-armability. This script
+does NOT prove Hermes/Telegram delivery. End-to-end delivery requires a
+separate receipt-observing delivery canary once that surface is available.
+"""
 import os
 import sys
 from pathlib import Path
 
-# Anchored to the repo, never to the scheduler's cwd: a deployed sensor
-# must run identically no matter where the tick fires it from. Deployed
-# copies live outside the tree, so resolve in order: explicit env,
-# in-tree layout proof, scheduler workdir proof, else fail loudly
-# (never guess a state dir).
+
 def _repo_root():
     env = os.environ.get("AG_FABRIC_ROOT")
     if env:
@@ -20,7 +20,7 @@ def _repo_root():
     cwd = Path.cwd()
     if (cwd / "contracts" / "sources.yaml").is_file():
         return cwd
-    print("CANARY-FAIL: cannot locate fabric root (set AG_FABRIC_ROOT)")
+    print("STATE-CANARY-FAIL: cannot locate fabric root (set AG_FABRIC_ROOT)")
     sys.exit(2)
 
 
@@ -31,29 +31,27 @@ from sensor_guard import require_typed_evidence
 
 _ON_DEMAND = "--on-demand" in sys.argv
 KEY = "canary|monthly|synthetic"
-EV = {"type": "synthetic_canary", "ref": "canary/monthly",
+EV = {"type": "synthetic_canary", "ref": "canary/state/monthly",
       "observed_at": "run", "repo": None, "sha": None}
 
 require_typed_evidence(EV)
 store = EventStore(str(REPO / "state" / "canary.sqlite"))
 if _ON_DEMAND:
-    # Non-destructive probe: EMIT -> SILENCE -> RESOLVED -> re-armable.
-    # Does not mutate live event state (test only).
+    # Non-destructive read probe: does not mutate live event state.
     first = store.check(KEY, "canary:on-demand")
-    print(f"CANARY-PROBE: check={first}")
-    if first == "EMIT":
-        print("CANARY-ON-DEMAND: OK (pipeline is live, event_store responding)")
-    else:
-        print("CANARY-ON-DEMAND: SILENCE (event already OPEN - pipeline responded)")
+    print(f"STATE-CANARY-PROBE: check={first}")
+    print("STATE-CANARY-ON-DEMAND: OK (event_store responded)")
     sys.exit(0)
 
-first = store.check(KEY, "canary:probe")
+first = store.claim_event(KEY, "canary:probe")
 if first != "EMIT":
-    print(f"CANARY-FAIL: expected EMIT, got {first}")
+    print(f"STATE-CANARY-FAIL: expected EMIT, got {first}")
     sys.exit(1)
-store.record(KEY, "canary:probe")
-assert store.check(KEY, "canary:probe") == "SILENCE"
-store.resolve(KEY)
-assert store.check(KEY, "canary:probe") == "EMIT"
-store.resolve(KEY)
-print("CANARY-OK: inject -> one emission -> resolved -> re-armable")
+if store.claim_event(KEY, "canary:probe") != "SILENCE":
+    print("STATE-CANARY-FAIL: duplicate claim was not silenced")
+    sys.exit(1)
+store.resolve(KEY)  # observed synthetic recovery
+if store.check(KEY, "canary:probe") != "EMIT":
+    print("STATE-CANARY-FAIL: resolved event did not re-arm")
+    sys.exit(1)
+print("STATE-CANARY-OK: atomic claim -> silence -> resolved -> re-armable")
