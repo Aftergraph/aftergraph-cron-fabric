@@ -15,3 +15,4 @@ jobs:
           python-version: "3.11"
       - run: python3 scripts/validate.py
       - run: python3 tests/test_behavior.py
+      - run: python3 scripts/sensors/canary.py
