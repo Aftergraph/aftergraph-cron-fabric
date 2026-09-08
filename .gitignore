@@ -16,6 +16,11 @@ deploy/delivery-receipts/
 # scripts/ag_v05_shadow_rollout.py. Hand-recorded evidence receipts
 # (e.g. deploy/receipts/ag-sentinel-release.json) stay tracked deliberately.
 deploy/receipts/ag-v05-shadow-*.json
+# v0.5.1 daily shadow summary receipts: one immutable JSON per day
+# produced by scripts/v05_shadow_summary.py. These accumulate live
+# evidence and are not committed (the SHADOW_ACCEPTED decision reads
+# them from the live directory).
+deploy/receipts/v05-shadow-summary-*.json
 .env
 .DS_Store
 Thumbs.db

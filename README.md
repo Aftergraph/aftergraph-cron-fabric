@@ -2,7 +2,7 @@
 
 # Aftergraph Cron Fabric
 
-Status: Product baseline v0.5 - 15 schedules / 7 concerns. Phase 1 scheduler/job execution proof is complete; Telegram transport exactly-once delivery is NOT yet claimed (delivery canary observes receipts but does not emit Telegram itself).
+Status: Product baseline v0.5.1 - 16 schedules / 7 concerns + shadow runner. Phase 1 scheduler/job execution proof is complete; Telegram transport exactly-once delivery is NOT yet claimed (delivery canary observes receipts but does not emit Telegram itself).
 One-line: a small set of Telegram-first scheduled jobs that watch the Aftergraph org and only speak when there is something to act on.
 
 Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is owned by [Aftergraph/brand](https://github.com/Aftergraph/brand); this repo copies no logos or tokens. See [docs/brand.md](docs/brand.md).
@@ -10,19 +10,21 @@ Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is ow
 ## What it does
 
 Today the profile runs 13 enabled cron jobs (verified 2026-09-08 11:15
-from jobs.json) plus 15 fabric definitions (13 core schedules including
-the delivery canary, 1 state canary, 1 legacy-local). Noisy hourly
+from jobs.json) plus 16 fabric definitions (14 core schedules including
+the delivery canary and the v0.5.1 shadow runner, 1 state canary, 1 legacy-local). Noisy hourly
 watchdogs and 5-minute pollers have been retired; this repo provides
 the replacement fabric.
 
-### v0.5 SHADOW READINESS
+### v0.5.1 SHADOW READINESS
 
-The four new P0 fabric concern sensors (merge-queue-stall,
-org-suite-liveness, public-provenance, research-freeze-watch) are
-**ready for shadow rollout** as of 2026-09-08. See
+The four P0 fabric concern sensors (merge-queue-stall,
+org-suite-liveness, public-provenance, research-freeze-watch) have
+**complete synthetic proof (16/16 fixture scenarios, 4/4 sensors,
+all offline)** and are `READY_FOR_SHADOW` as of 2026-09-08. See
 [docs/v05-shadow-readiness.md](docs/v05-shadow-readiness.md) for the
-exact-HEAD verdict, full job inventory, synthetic proof, and
-remaining blockers. P1/P2 jobs are scope-locked under
+exact-HEAD verdict, mechanical state machine
+(`NOT_READY -> READY_FOR_SHADOW -> SHADOW_RUNNING -> SHADOW_ACCEPTED -> TELEGRAM_READY`),
+and remaining work. P1/P2 jobs remain scope-locked under
 [contracts/v06-scope-lock.yaml](contracts/v06-scope-lock.yaml).
 
 The v0.4 correctness core makes event claiming atomic across independent

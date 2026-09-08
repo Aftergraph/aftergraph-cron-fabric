@@ -23,6 +23,32 @@ from pathlib import Path
 MANIFEST_PATH = "contracts/freeze-manifest.yaml"
 AMENDMENTS_PATH = "contracts/freeze-amendments.yaml"
 
+# Offline fixture support. Schema:
+#   { "current_sha": { "<repo>:<path>": "<sha>" } }
+_OFFLINE_FIXTURE = None
+
+
+def _load_offline_fixture():
+    global _OFFLINE_FIXTURE
+    if _OFFLINE_FIXTURE is not None:
+        return _OFFLINE_FIXTURE
+    path = None
+    if len(sys.argv) > 1 and sys.argv[1] == "--offline-fixture" \
+            and len(sys.argv) > 2:
+        path = sys.argv[2]
+    elif "AG_FABRIC_OFFLINE_FIXTURE" in os.environ:
+        path = os.environ["AG_FABRIC_OFFLINE_FIXTURE"]
+    if not path:
+        return None
+    p = Path(path)
+    if not p.is_file():
+        return None
+    try:
+        _OFFLINE_FIXTURE = json.loads(p.read_text(encoding="utf-8"))
+    except json.JSONDecodeError:
+        _OFFLINE_FIXTURE = {}
+    return _OFFLINE_FIXTURE
+
 
 def _repo_root():
     env = os.environ.get("AG_FABRIC_ROOT")
@@ -96,6 +122,9 @@ def _read_amendments():
 
 
 def _current_sha(repo, path):
+    fix = _load_offline_fixture()
+    if fix is not None:
+        return fix.get("current_sha", {}).get(f"{repo}:{path}")
     try:
         out = subprocess.run(
             ["gh", "api",
@@ -112,8 +141,13 @@ def _current_sha(repo, path):
 
 
 def main():
-    store = EventStore(str(
-        REPO / "state" / f"research_freeze.{int(time.time())}.sqlite"))
+    global REPO
+    REPO = _repo_root()
+    # Persistent EventStore: per-sensor, not per-run.
+    default_store = REPO / "state" / "research_freeze.sqlite"
+    store_path = os.environ.get(
+        "AG_FABRIC_STORE", str(default_store))
+    store = EventStore(store_path)
 
     manifest = _read_manifest()
     if not manifest:
