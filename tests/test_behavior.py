@@ -263,4 +263,70 @@ try:
 except OSError:
     pass  # other receipts exist; never tear down shared dirs
 
+# verify_slo.py: Phase-1 success metrics are machine-checkable (spec #9).
+_slo_dir = Path(tempfile.mkdtemp(), "slo")
+_slo_dir.mkdir()
+_evdb = _slo_dir / "events.sqlite"
+_cadb = _slo_dir / "canary.sqlite"
+_ecdb = _slo_dir / "executions.db"
+_jobjson = _slo_dir / "jobs.json"
+_db1 = _slo_dir / "db1.sqlite"
+_db2 = _slo_dir / "db2.sqlite"
+
+def _mk_evdb(path, rows):
+    """Create a fresh events.sqlite with the given rows."""
+    if Path(path).exists():
+        Path(path).unlink()
+    con = _sql.connect(str(path))
+    con.execute("CREATE TABLE events (event_key TEXT, fingerprint TEXT, "
+                "state TEXT, opened_at REAL, updated_at REAL, evidence TEXT)")
+    if rows:
+        con.executemany("INSERT INTO events VALUES (?,?,?,?,?,?)", rows)
+    con.commit(); con.close()
+
+def _mk_empty_exec(path):
+    """Create an empty executions.db."""
+    if Path(path).exists():
+        Path(path).unlink()
+    con = _sql.connect(str(path))
+    con.execute("CREATE TABLE executions (id TEXT, job_id TEXT, source TEXT, "
+                "status TEXT, scheduled_instant TEXT, started_at REAL, "
+                "finished_at REAL)")
+    con.commit(); con.close()
+
+# canonical clean state: unique fp, evidence present, canary resolved, no live jobs
+_mk_evdb(_evdb, [("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=abc123")])
+_mk_evdb(_cadb, [("k1", "fp1", "RESOLVED", 1, 2, "type=synthetic_canary")])
+_jobjson.write_text("[]", encoding="utf-8")
+_mk_empty_exec(_ecdb)
+_r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
+              "--jobs-dir", str(ROOT / "jobs"),
+              "--events-db", str(_evdb), "--canary-db", str(_cadb),
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+             capture_output=True, text=True, cwd=str(ROOT))
+check("slo verify PASSes clean state (SLO pending, not violated)",
+      _r.returncode == 2
+      and "PASS (checkable metrics)" in _r.stdout)
+
+# duplicate fingerprint -> VIOLATION exit 1
+_mk_evdb(_evdb, [("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=ab"),
+                  ("k2", "fp1", "OPEN", 2, 2, "type=commit;sha=ab")])
+_r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
+              "--jobs-dir", str(ROOT / "jobs"),
+              "--events-db", str(_evdb), "--canary-db", str(_cadb),
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+             capture_output=True, text=True, cwd=str(ROOT))
+check("slo verify FAILs on duplicate fingerprint",
+      _r.returncode == 1 and "DUPLICATE" in _r.stdout)
+
+# missing typed evidence -> VIOLATION exit 1
+_mk_evdb(_evdb, [("k1", "fp1", "OPEN", 1, 1, "")])
+_r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
+              "--jobs-dir", str(ROOT / "jobs"),
+              "--events-db", str(_evdb), "--canary-db", str(_cadb),
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+             capture_output=True, text=True, cwd=str(ROOT))
+check("slo verify FAILs on missing typed evidence",
+      _r.returncode == 1 and "evidence" in _r.stdout)
+
 print(f"\nBEHAVIOR-OK: {passed} checks")

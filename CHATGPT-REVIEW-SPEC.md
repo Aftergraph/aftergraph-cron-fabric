@@ -103,7 +103,7 @@ across processes; tokens read-only scoped at rollout (Phase 0 item).
 
 ## 8. Testing
 
-validate.py (10 jobs) + test_behavior.py (35 checks) + canary.py
+validate.py (10 jobs) + test_behavior.py (38 checks) + canary.py
 self-test. CI runs all three. Output schema: typed evidence on every
 notify+ (require_typed_evidence). scripts/verify_tick.py proves a
 scheduled (not manual) tick consumed its slot: next_run_at advanced,
@@ -118,7 +118,12 @@ Phase 0: reconcile 14 live jobs, baseline, Ops topic, read-only token
 scoping. Phase 1: 3 jobs paused/manual/shadow (3-way acceptance).
 Success: duplicate rate 0; false INCIDENT 0; canary 100% (emission +
 RESOLVED); evidence completeness 100%; per-job p50/p95 SLOs met;
-volume down vs frozen baseline.
+volume down vs frozen baseline. scripts/verify_slo.py makes these
+machine-checkable: computes duplicate rate and evidence completeness
+from events.sqlite, canary emission->RESOLVED from canary.sqlite, and
+per-job p50/p95 execution duration vs the detection_slo declared in
+each jobs/*.yaml. Exit 0 all-pass / 1 violation / 2 insufficient data
+(SLOs pending live Phase-1 runs - not yet violated).
 
 ## 10. Open questions
 

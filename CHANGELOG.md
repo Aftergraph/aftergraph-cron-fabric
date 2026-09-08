@@ -15,6 +15,12 @@
 - Job catalog pinned in tests: 8 core + 1 canary + 1 legacy = 10 jobs,
   4 new behavior checks (catches count prose-drift like the v0.2 9-vs-10
   bug). Suite now 35.
+- scripts/verify_slo.py: makes every spec #9 success criterion
+  machine-checkable (duplicate rate + evidence completeness from
+  events.sqlite, canary emission->RESOLVED from canary.sqlite, per-job
+  p50/p95 execution duration vs declared detection_slo in jobs/*.yaml).
+  Exit 0 all-pass / 1 violation / 2 insufficient data. 3 new behavior
+  checks. Suite now 38.
 
 ### Verified 2026-09-08
 - Sentinel release sensor re-proven live: manual fire 09:12 -> completed
