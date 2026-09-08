@@ -1,4 +1,6 @@
 """Behavioral tests (ChatGPT finding #9 fix). Run: python3 tests/test_behavior.py"""
+import json
+import os
 import subprocess
 import sys
 import tempfile
@@ -171,15 +173,17 @@ _legacy_names = sorted(_job_name(f) for f in _legacy_files)
 _core_schedules = [
     "ag-runtime-paritet", "ag-wi-contract", "ag-governance-drift",
     "ag-claim-watch", "ag-research-evidence", "ag-vault-watch",
-    "ag-vault-freshness", "ag-sentinel-release"]
-check("catalog: 8 core schedules match spec §5",
+    "ag-vault-freshness", "ag-sentinel-release",
+    "ag-fabric-delivery"]  # delivery canary: receipt-observing pair
+check("catalog: 9 core schedules match spec §5",
       set(_core_schedules) == set(_core_names) - {"ag-fabric-canary"}
-      and len(_core_names) == 9)  # 8 core + 1 canary
-check("catalog: canary present", "ag-fabric-canary" in _core_names)
+      and len(_core_names) == 10)  # 9 core + 1 state canary
+check("catalog: state canary present",
+      "ag-fabric-canary" in _core_names)
 check("catalog: 1 legacy-local",
       _legacy_names == ["ag-legacy-noise-gate"])
-check("catalog: 10 jobs total",
-      len(_core_files) + len(_legacy_files) == 10)
+check("catalog: 11 jobs total",
+      len(_core_files) + len(_legacy_files) == 11)
 
 # 12. verify_tick.py: suppressed slot must FAIL, healthy slot must PASS
 import sqlite3 as _sql, json as _json
@@ -561,5 +565,105 @@ _r = _sp.run(
     capture_output=True, text=True, cwd=str(ROOT))
 check("slo verify ERRORs on missing baseline",
       _r.returncode == 1 and "baseline file absent" in _r.stdout)
+
+# 51. delivery canary --on-demand probe does not mutate live state
+_dc_dir = tempfile.mkdtemp()
+Path(_dc_dir, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_dc_dir, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+_dc_env = os.environ.copy()
+_dc_env["AG_FABRIC_ROOT"] = str(_dc_dir)
+_r = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py"),
+     "--on-demand"],
+    capture_output=True, text=True, env=_dc_env,
+    cwd=str(_dc_dir))
+check("delivery canary --on-demand exits 0",
+      _r.returncode == 0 and "DELIVERY-CANARY-ON-DEMAND" in _r.stdout)
+
+# 52. delivery canary self-test --synthesize-receipt proves end-to-end
+_dc_dir2 = tempfile.mkdtemp()
+Path(_dc_dir2, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_dc_dir2, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+_dc_env2 = os.environ.copy()
+_dc_env2["AG_FABRIC_ROOT"] = str(_dc_dir2)
+_r = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py"),
+     "--synthesize-receipt"],
+    capture_output=True, text=True, env=_dc_env2,
+    cwd=str(_dc_dir2))
+check("delivery canary self-test with synthetic receipt exits 0",
+      _r.returncode == 0 and "DELIVERY-CANARY-OK" in _r.stdout)
+
+# 53. delivery canary fails closed when no receipt exists
+_dc_dir3 = tempfile.mkdtemp()
+Path(_dc_dir3, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_dc_dir3, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+_dc_env3 = os.environ.copy()
+_dc_env3["AG_FABRIC_ROOT"] = str(_dc_dir3)
+_r = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py")],
+    capture_output=True, text=True, env=_dc_env3,
+    cwd=str(_dc_dir3))
+check("delivery canary fails closed when no receipt exists",
+      _r.returncode == 1 and "no_delivery_receipt" in _r.stdout)
+
+# 54. delivery canary fails closed on tampered receipt sha256
+_dc_dir5 = tempfile.mkdtemp()
+_dc_env5 = os.environ.copy()
+# Isolate: temp dir IS the fabric root so receipts and state stay there.
+Path(_dc_dir5, "contracts").mkdir(parents=True, exist_ok=True)
+# Sentinel file the canary uses to locate the repo root.
+Path(_dc_dir5, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+_dc_env5["AG_FABRIC_ROOT"] = str(_dc_dir5)
+_r0 = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py"),
+     "--synthesize-receipt"],
+    capture_output=True, text=True, env=_dc_env5, cwd=str(_dc_dir5))
+_receipts5 = Path(_dc_dir5) / "deploy" / "delivery-receipts"
+_just_written = sorted(_receipts5.glob("delivery-*.json"))[-1]
+_parsed = json.loads(_just_written.read_text(encoding="utf-8"))
+_parsed["sha256"] = "0" * 64
+_just_written.write_text(json.dumps(_parsed, indent=2, sort_keys=True),
+                         encoding="utf-8")
+_r = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py")],
+    capture_output=True, text=True, env=_dc_env5, cwd=str(_dc_dir5))
+check("delivery canary fails closed on tampered receipt sha256",
+      _r.returncode == 1 and "receipt_sha_mismatch" in _r.stdout)
+
+# 55. delivery canary happy path completes (run-once)
+_dc_dir6 = tempfile.mkdtemp()
+_dc_env6 = os.environ.copy()
+Path(_dc_dir6, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_dc_dir6, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+_dc_env6["AG_FABRIC_ROOT"] = str(_dc_dir6)
+_r = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py"),
+     "--synthesize-receipt"],
+    capture_output=True, text=True, env=_dc_env6, cwd=str(_dc_dir6))
+check("delivery canary happy path completes (run-once)",
+      _r.returncode == 0 and "DELIVERY-CANARY-OK" in _r.stdout)
+
+# 56. delivery canary job YAML is well-formed and read-only=true
+_job_yaml = ROOT / "jobs" / "ag-fabric-delivery-canary.yaml"
+_text = _job_yaml.read_text(encoding="utf-8")
+check("delivery canary job YAML exists", _job_yaml.is_file())
+check("delivery canary job YAML enforces read_only=true",
+      "read_only: true" in _text)
+check("delivery canary job YAML uses no_agent mode",
+      "mode: no_agent" in _text)
+check("delivery canary job YAML points at the right script",
+      "scripts/sensors/delivery_canary.py" in _text)
 
 print(f"\nBEHAVIOR-OK: {passed} checks")
