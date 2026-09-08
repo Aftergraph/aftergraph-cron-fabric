@@ -26,7 +26,7 @@ cron deliveries.
 git clone https://github.com/Aftergraph/aftergraph-cron-fabric.git
 cd aftergraph-cron-fabric
 python3 scripts/validate.py          # validates every jobs/*.yaml
-python3 tests/test_behavior.py       # 27 behavioral checks
+python3 tests/test_behavior.py       # 31 behavioral checks
 cat CHATGPT-REVIEW-SPEC.md           # the reviewable spec
 ```
 

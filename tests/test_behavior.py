@@ -10,7 +10,9 @@ sys.path.insert(0, str(ROOT / "scripts"))
 from event_store import EventStore
 from sensor_guard import (EVIDENCE_TYPES, SensorDegraded, backoff,
                           classify_http, require_evidence,
-                          require_typed_evidence)
+                          require_typed_evidence, retry_after_seconds)
+import email.utils
+import time
 
 passed = 0
 
@@ -130,6 +132,20 @@ check("deep-audit continuity allowed",
 check("continuity allowlist matches spec #5",
       NO_CONTINUITY == {"ag-claim-watch", "ag-vault-watch",
                         "ag-sentinel-release", "ag-legacy-noise-gate"})
+
+# 10b. retry_after_seconds: RFC 9110 delta-seconds + HTTP-date + garbage
+check("retry-after delta-seconds parsed",
+      abs(retry_after_seconds("120") - 120) < 1)
+check("retry-after HTTP-date parsed",
+      retry_after_seconds("Wed, 21 Oct 2026 07:28:00 GMT") is not None
+      and retry_after_seconds("Wed, 21 Oct 2026 07:28:00 GMT") > 0)
+check("retry-after garbage -> None",
+      retry_after_seconds("soon") is None
+      and retry_after_seconds("") is None
+      and retry_after_seconds("0") is None
+      and retry_after_seconds(None) is None)
+check("retry-after past date -> None",
+      retry_after_seconds("Wed, 21 Oct 2015 07:28:00 GMT") is None)
 
 # 11. verify_tick.py: suppressed slot must FAIL, healthy slot must PASS
 import sqlite3 as _sql, json as _json

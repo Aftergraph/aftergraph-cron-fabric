@@ -9,7 +9,9 @@
   matching scheduled_instant in executions.db, and an output file.
   Exit 0 verified / 1 failed / 2 pending. Kills the last Phase-1
   ambiguity (suppressed tick looks like a fired one from jobs.json
-  alone). 2 new behavior checks; suite now 27.
+  alone). 2 behavior checks.
+- retry_after_seconds() in sensor_guard.py: RFC 9110 Retry-After parsing
+  (delta-seconds + HTTP-date). 4 new behavior checks; suite now 31.
 
 ### Verified 2026-09-08
 - Sentinel release sensor re-proven live: manual fire 09:12 -> completed

@@ -5,6 +5,7 @@
 - Semaphore: max 3 concurrent GH-heavy workers (429 lesson); plus
   Retry-After respect, exponential backoff with jitter (helpers).
 """
+import email.utils
 import random
 import sqlite3
 import time
@@ -25,6 +26,31 @@ def classify_http(status=None, timeout=False):
     if status >= 500:
         raise SensorDegraded(f"upstream {status}")
     return "REPO"
+
+
+def retry_after_seconds(header_value):
+    """Parse Retry-After header (RFC 9110 §10.2.3). Returns float
+    seconds or None if unparseable / non-positive. Handles both
+    delta-seconds ('120') and HTTP-date ('Wed, 21 Oct 2015 07:28:00 GMT')."""
+    if not header_value:
+        return None
+    s = header_value.strip()
+    # delta-seconds
+    try:
+        secs = float(s)
+        return secs if secs > 0 else None
+    except ValueError:
+        pass
+    # HTTP-date
+    try:
+        parsed = email.utils.parsedate_tz(s)
+        if parsed:
+            ts = email.utils.mktime_tz(parsed)
+            delta = ts - time.time()
+            return delta if delta > 0 else None
+    except Exception:
+        pass
+    return None
 
 
 EVIDENCE_TYPES = {"commit", "workflow_run", "contract", "http_observation",
