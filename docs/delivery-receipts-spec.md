@@ -176,3 +176,36 @@ with a failure mode (`no_delivery_receipt`, `receipt_sha_mismatch`,
 - [ ] Renderer does NOT need Cron Fabric at runtime; only the env var
       `AG_FABRIC_ROOT` and access to the `deploy/delivery-receipts/`
       directory.
+
+## Proven chain procedure (Phase C, live-verified 2026-09-08)
+
+The full chain has been executed live against the real renderer
+(`telegram-live-status/statuscard`):
+
+1. Fabric claims the event (EventStore claim_event -> EMIT).
+2. Bridge sends one status card via `hermes statuscard`
+   (scripts/telegram_receipt_bridge.py) with the claim's
+   event_key + fingerprint.
+3. On renderer success the bridge writes
+   `deploy/delivery-receipts/delivery-{key16}.json` where
+   `key16 = sha256(event_key + NUL + fingerprint)[:16]`
+   (NUL byte, NOT the literal two-character backslash-zero — this
+   exact bug was found and fixed by the first live chain attempt).
+4. `ag-fabric-delivery` (delivery_canary.py) re-claims the same key,
+   finds the receipt, verifies the self-attested sha256 and the
+   fingerprint binding, and records replay SILENCE.
+
+Verified outputs from the live run:
+- `DELIVERY-BRIDGE-OK: delivery-3381fd9db8ad4f40.json`
+- `DELIVERY-CANARY-OK: claim -> receipt observed -> sha256 verified
+  -> replay SILENCE` (run twice; second run also SILENCE = replay
+  does not duplicate)
+
+Fail-closed paths proven by tests (tests/test_behavior.py):
+- no receipt -> exit 1
+- tampered sha256 -> exit 1
+- wrong-fingerprint binding (self-attestation valid) -> exit 1
+
+Exactly-once Telegram delivery may only be claimed once the canary
+observes a real renderer receipt AND the replay run stays SILENT —
+both conditions are now mechanically verified.
