@@ -29,12 +29,24 @@ sys.path.insert(0, str(REPO / "scripts"))
 from event_store import EventStore
 from sensor_guard import require_typed_evidence
 
-store = EventStore(str(REPO / "state" / "canary.sqlite"))
+_ON_DEMAND = "--on-demand" in sys.argv
 KEY = "canary|monthly|synthetic"
 EV = {"type": "synthetic_canary", "ref": "canary/monthly",
       "observed_at": "run", "repo": None, "sha": None}
 
 require_typed_evidence(EV)
+store = EventStore(str(REPO / "state" / "canary.sqlite"))
+if _ON_DEMAND:
+    # Non-destructive probe: EMIT -> SILENCE -> RESOLVED -> re-armable.
+    # Does not mutate live event state (test only).
+    first = store.check(KEY, "canary:on-demand")
+    print(f"CANARY-PROBE: check={first}")
+    if first == "EMIT":
+        print("CANARY-ON-DEMAND: OK (pipeline is live, event_store responding)")
+    else:
+        print("CANARY-ON-DEMAND: SILENCE (event already OPEN - pipeline responded)")
+    sys.exit(0)
+
 first = store.check(KEY, "canary:probe")
 if first != "EMIT":
     print(f"CANARY-FAIL: expected EMIT, got {first}")

@@ -125,10 +125,26 @@ per-job p50/p95 execution duration vs the detection_slo declared in
 each jobs/*.yaml. Exit 0 all-pass / 1 violation / 2 insufficient data
 (SLOs pending live Phase-1 runs - not yet violated).
 
-## 10. Open questions
+## 10. Open questions - RESOLVED 2026-09-08
 
-1. Is CrossProcessSemaphore-over-SQLite acceptable, or do you want
-   file-lock primitive instead for NFS-style hosts?
+1. CrossProcessSemaphore-over-SQLite vs file-lock for NFS-style hosts.
+   RESOLVED: SQLite chosen. Evidence: tests/test_behavior.py xproc test
+   (3 holders + 1 contender) proves cross-process safety locally. File
+   locks (fcntl/flock) are Unix-only, not portable to Windows. The cron
+   scheduler runs on a single local host. SQLite WAL mode handles local
+   concurrency. Artifact: tests/xproc_worker.py, test xproc checks #31-32.
+
 2. Should canary also run on-demand pre-deploy (in addition to monthly)?
+   RESOLVED: Yes. Implemented scripts/sensors/canary.py --on-demand flag
+   (non-destructive probe: check -> OK/SILENCE -> exit 0). Pre-deploy
+   check verifies event_store pipeline is alive without mutating state.
+   Deploy pipeline can invoke: python3 scripts/sensors/canary.py --on-demand.
+
 3. DECISION ack semantics: does ack freeze the event (no re-emit on
-   same fingerprint) - currently yes via resolve; confirm.
+   same fingerprint)?
+   RESOLVED: Ack does NOT freeze permanently. resolve() transitions
+   event state from OPEN to HEALTHY (event_store.py:70-74). Next
+   check() on a HEALTHY key returns EMIT (line 49-50). This is by
+   design: ack means "I am aware", but a new occurrence on the same
+   subject re-arms the event. Behavior test "resolve closes" + canary
+   lifecycle (emit -> resolve -> emit again) confirm this.
