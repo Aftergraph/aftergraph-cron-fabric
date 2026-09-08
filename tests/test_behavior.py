@@ -887,5 +887,38 @@ _r = _sp.run(
     capture_output=True, text=True, env=_bc_env, cwd=str(_bc_dir))
 check("chain fails closed on rebound bridge receipt",
       _r.returncode == 1 and "fingerprint" in _r.stdout.lower())
+
+# 75. renderer-call contract frozen: exact argv the bridge passes to
+# the telegram-live-status plugin CLI (list form = no shell).
+_rc_prev_root = os.environ.get("AG_FABRIC_ROOT")
+_rc_dir = tempfile.mkdtemp()
+Path(_rc_dir, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_rc_dir, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+os.environ["AG_FABRIC_ROOT"] = str(_rc_dir)
+sys.path.insert(0, str(ROOT / "scripts"))
+import telegram_receipt_bridge as _br_mod
+if _rc_prev_root is None:
+    del os.environ["AG_FABRIC_ROOT"]
+else:
+    os.environ["AG_FABRIC_ROOT"] = _rc_prev_root
+_bc_cmd = _br_mod._build_renderer_cmd("task-1", "hello", producer=None)
+_bc_evt = json.loads(_bc_cmd[_bc_cmd.index("--event") + 1])
+check("renderer argv frozen (hermes statuscard --to --task --event)",
+      _bc_cmd[:6] == ["hermes", "statuscard", "--to", "telegram:Jonas",
+                      "--task", "task-1"]
+      and _bc_evt["task_id"] == "task-1"
+      and _bc_evt["status"] == "RUNNING"
+      and _bc_evt["message"] == "hello"
+      and _bc_evt["producer"] == "cron-fabric-receipt-bridge"
+      and isinstance(_bc_evt["revision"], int))
+
+# 76. custom producer propagates; argv stays a list (never a string).
+_bc_cmd2 = _br_mod._build_renderer_cmd("task-2", "hi", producer="x")
+_bc_evt2 = json.loads(_bc_cmd2[_bc_cmd2.index("--event") + 1])
+check("custom producer propagates, argv remains shell-free list",
+      isinstance(_bc_cmd2, list)
+      and _bc_evt2["producer"] == "x"
+      and _bc_cmd2[3] == "telegram:Jonas")
 print(f"\nBEHAVIOR-OK: {passed} checks")
 
