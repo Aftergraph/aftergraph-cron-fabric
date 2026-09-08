@@ -104,7 +104,8 @@ across processes; tokens read-only scoped at rollout (Phase 0 item).
 ## 8. Testing
 
 validate.py (10 jobs) + test_behavior.py (40 checks) + canary.py
-self-test. CI runs all three. Output schema: typed evidence on every
+self-test. CI runs all three. docs/CONFORMANCE.md maps every spec section
+to its mechanical proof command. Output schema: typed evidence on every
 notify+ (require_typed_evidence). scripts/verify_tick.py proves a
 scheduled (not manual) tick consumed its slot: next_run_at advanced,
 completed scheduler-source execution with matching scheduled_instant,

@@ -28,6 +28,7 @@ cd aftergraph-cron-fabric
 python3 scripts/validate.py          # validates every jobs/*.yaml
 python3 tests/test_behavior.py       # 40 behavioral checks
 cat CHATGPT-REVIEW-SPEC.md           # the reviewable spec
+cat docs/CONFORMANCE.md              # spec-section -> proof command map
 ```
 
 ## How to test

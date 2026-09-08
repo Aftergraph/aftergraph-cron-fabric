@@ -24,6 +24,7 @@
 - verify_slo SLO-path behavior tests: 10 fast runs within SLO -> exit 0
   SLO-VERIFIED; 10 slow runs (3h vs p50_max 2h) -> exit 1 VIOLATION.
   2 new behavior checks. Suite now 40.
+- CONFORMANCE.md: spec-section -> verification command map for reviewers.
 
 ### Verified 2026-09-08
 - Sentinel release sensor re-proven live: manual fire 09:12 -> completed
