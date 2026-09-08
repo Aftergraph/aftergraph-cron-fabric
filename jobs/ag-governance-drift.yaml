@@ -14,14 +14,18 @@ prompt: |
   only) and compare repository identity, visibility and canonical branch
   against contract organization.topology in contracts/sources.yaml
   (Aftergraph/after-graph-governance docs/platform-topology/1.0.json).
-  Classify temporary/incubation repos explicitly; repo existence MUST NOT
-  upgrade maturity or authority. Only after topology is current, inspect
-  the remaining contracts/sources.yaml entries against their declared
-  canonical owners and mirrors. aie.terminology stays research-owned by
-  AIE and must not be normalized to governance terminology. Use
-  EventStore.claim_event() for actual findings; same fingerprint is silent.
-  Emit only evidenced topology/ownership/contract drift, not ordinary repo
-  churn. Never merge, push, deploy, approve, delete, write to repos, or
-  read secrets.
+  Classify each topology entry by its canonical role through
+  contracts/coverage-policy.json. That role-to-concern policy is the Cron
+  Fabric coverage map; do NOT create or maintain a second repository list.
+  Unknown/unmapped topology roles are actionable coverage drift. Apply the
+  special rules for temporary fixtures, incubation and legacy transition;
+  repo existence MUST NOT upgrade maturity or authority. Only after topology
+  is current and covered, inspect the remaining contracts/sources.yaml
+  entries against their declared canonical owners and mirrors.
+  aie.terminology stays research-owned by AIE and must not be normalized to
+  governance terminology. Use EventStore.claim_event() for actual findings;
+  same fingerprint is silent. Emit only evidenced topology/coverage/
+  ownership/contract drift, not ordinary repo churn. Never merge, push,
+  deploy, approve, delete, write to repos, or read secrets.
 continuity: true
 enabled_toolsets: [terminal]
