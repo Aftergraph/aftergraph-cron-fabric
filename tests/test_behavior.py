@@ -920,5 +920,76 @@ check("custom producer propagates, argv remains shell-free list",
       isinstance(_bc_cmd2, list)
       and _bc_evt2["producer"] == "x"
       and _bc_cmd2[3] == "telegram:Jonas")
+
+# 77-80. fleet status card aggregates shadow receipts offline.
+# Synthetic receipts reuse shadow_receipt.write_run_receipt (the real
+# writer), so the fleet test proves the real bytes, not a copy.
+_fl_dir = tempfile.mkdtemp()
+Path(_fl_dir, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_fl_dir, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+_fl_env = os.environ.copy()
+_fl_env["AG_FABRIC_ROOT"] = str(_fl_dir)
+sys.path.insert(0, str(ROOT / "scripts"))
+from shadow_receipt import write_run_receipt as _fl_write
+from datetime import datetime, timedelta, timezone as _tz
+_fl_now = datetime.now(_tz.utc)
+for _fl_job in ["ag-merge-queue-stall", "ag-org-suite-liveness",
+                "ag-public-provenance", "ag-research-freeze-watch"]:
+    _fl_write(Path(_fl_dir), _fl_job, _fl_now, _fl_now, 0,
+              "SENSOR-OK: emitted=0")
+_r = _sp.run(
+    [sys.executable, str(ROOT / "scripts" / "ag_fleet_status.py"),
+     "--dry-run"],
+    capture_output=True, text=True, env=_fl_env, cwd=str(_fl_dir))
+check("fleet card OK on all-SILENCE receipts (dry-run)",
+      _r.returncode == 0 and "FLEET-OK" in _r.stdout
+      and "FLEET-CARD-DRYRUN: ag-fleet" in _r.stdout)
+
+# 78. fleet WARNs (rc 0) on an EMIT receipt and names an exception.
+_fl_write(Path(_fl_dir), "ag-merge-queue-stall",
+          _fl_now + timedelta(seconds=5), _fl_now + timedelta(seconds=5),
+          0, "MERGE-QUEUE-STALL-EMIT: foo#1 age=999m")
+_r = _sp.run(
+    [sys.executable, str(ROOT / "scripts" / "ag_fleet_status.py"),
+     "--dry-run"],
+    capture_output=True, text=True, env=_fl_env, cwd=str(_fl_dir))
+check("fleet WARNs on EMIT receipt, exception flagged (dry-run)",
+      _r.returncode == 0 and "FLEET-WARN" in _r.stdout
+      and "ag-fleet-alert-ag-merge-queue-stall" in _r.stdout)
+
+# 79. fleet fails closed (rc 1) on a tampered receipt sha256.
+_fl_tamp = sorted((Path(_fl_dir) / "deploy" / "receipts").glob(
+    "ag-v05-shadow-ag-public-provenance-*.json"))[-1]
+_fl_p = json.loads(_fl_tamp.read_text(encoding="utf-8"))
+_fl_p["sha256"] = "0" * 64
+_fl_tamp.write_text(json.dumps(_fl_p, indent=2, sort_keys=True),
+                    encoding="utf-8")
+_r = _sp.run(
+    [sys.executable, str(ROOT / "scripts" / "ag_fleet_status.py"),
+     "--dry-run"],
+    capture_output=True, text=True, env=_fl_env, cwd=str(_fl_dir))
+check("fleet fails closed on tampered receipt",
+      _r.returncode == 1 and "tampered" in _r.stdout.lower())
+
+# 80. fleet fails closed (rc 1) when hermes CLI is absent and no dry-run.
+# Fresh dir with clean receipts so the run reaches the card-send stage.
+_fl_dir2 = tempfile.mkdtemp()
+Path(_fl_dir2, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_fl_dir2, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+for _fl_job2 in ["ag-merge-queue-stall", "ag-org-suite-liveness",
+                 "ag-public-provenance", "ag-research-freeze-watch"]:
+    _fl_write(Path(_fl_dir2), _fl_job2, _fl_now, _fl_now, 0,
+              "SENSOR-OK: emitted=0")
+_fl_env_nohermes = os.environ.copy()
+_fl_env_nohermes["AG_FABRIC_ROOT"] = str(_fl_dir2)
+_fl_env_nohermes["PATH"] = str(_fl_dir2)  # empty dir: no hermes binary
+_r = _sp.run(
+    [sys.executable, str(ROOT / "scripts" / "ag_fleet_status.py")],
+    capture_output=True, text=True, env=_fl_env_nohermes,
+    cwd=str(_fl_dir))
+check("fleet fails closed without hermes CLI",
+      _r.returncode == 1 and "hermes" in _r.stdout.lower())
 print(f"\nBEHAVIOR-OK: {passed} checks")
 
