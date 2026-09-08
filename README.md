@@ -56,7 +56,7 @@ Telegram Ops topic for cron delivery when production delivery is enabled.
 git clone https://github.com/Aftergraph/aftergraph-cron-fabric.git
 cd aftergraph-cron-fabric
 python3 scripts/validate.py          # validates every jobs/*.yaml
-python3 tests/test_behavior.py       # 115 behavioral checks
+python3 tests/test_behavior.py       # 119 behavioral checks
 cat CHATGPT-REVIEW-SPEC.md           # reviewable product contract
 cat docs/CONFORMANCE.md              # spec-section -> proof command map
 ```

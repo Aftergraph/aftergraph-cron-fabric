@@ -105,3 +105,94 @@ operator).
   deploy/receipts/. Threat requires a malicious committed YAML, at
   which point easier paths exist. Revisit if YAML ever comes from
   unreviewed sources.
+
+## D9. Per-run shadow receipts (shadow day 1, verified gap)
+
+Executions.db proves a tick fired but stores no stdout or
+classification, so the 7-day decision would have been
+reconstructed, not read.
+
+Options: (a) accept executions.db + EventStores as sufficient;
+(b) have the daily summary re-run the sensors and record that;
+(c) wrappers write one immutable sha256 receipt per run.
+
+Debate: (a) leaves classification unattested per run. (b) was the
+actual prior design - and the flaw: the summary measured four
+fresh synthetic runs instead of the day's cron ticks, i.e. the
+rollup proved itself. (c) costs one small writer + best-effort
+wrapper hooks that can never fail a sensor run.
+
+Choice: (c). scripts/shadow_receipt.py, schema
+shadow-run-receipt/1, live-proven by manual run then by the
+23:47 natural tick (SILENCE, sha-ok). duplicate_count stays with
+EventStores/canary - receipts carry no event_key by design, and
+the summary says so instead of inventing the number.
+
+## D10. PARTIAL verdict for short windows
+
+Live aggregation immediately showed COMPLETE on a 14-minute
+window: nothing missing, but nothing proven either.
+
+Options: (a) COMPLETE whenever missing=0; (b) PARTIAL below a
+full-day threshold.
+
+Debate: (a) lets the shadow-start day read as a full
+observation day at acceptance time - exactly the kind of prose
+optimism the loop rules exist to kill.
+
+Choice: (b), threshold 20h. Day 1 reports PARTIAL by
+construction. 7x COMPLETE still required, unchanged.
+
+## D11. No cadence compression (speed debate, owner-prompted)
+
+Owner asked why the long wait and wanted it faster.
+
+Options: (a) tighten intervals temporarily; (b) manual backfill
+posing as days; (c) shorten the 7-day window; (d) cut own
+latency + parallelize all gate-independent work now.
+
+Debate: (a) proves a different duty cycle than production will
+run - acceptance demands the intended schedules. (b) is
+fabricated evidence. (c) is explicitly forbidden by the mission.
+Only (d) is honest acceleration: CI waits, sequential PRs, and
+deferred audits (D2 safety, D6 noise, dependabot, doc truth)
+needed no gate to proceed.
+
+Choice: (d). Window and cadences stand. Everything verifiable
+today was verified today: D2 audit (read_only + no_agent x5,
+GET-only via gh-read.sh, no secrets), D6 (0 EMIT -> 0/day),
+PR queue drained to zero.
+
+## D12. Parallel fleet work (corrected: merged as #23)
+
+A parallel track wrote scripts/ag_fleet_status.py + 71 lines of
+fleet tests into this checkout mid-session. I first misread its
+disappearance as a rollback - in fact my checkout was stale; the
+work merged to main as #23 (119 checks) at 23:52 while I was on
+an older base.
+
+Options were: (a) integrate on sight; (b) delete; (c) leave for
+PR review. Reality decided: it landed as #23 with tests
+(dry-run aggregation, EMIT/WARN, tamper fail-closed) before this
+note was written.
+
+Remaining standing concern, narrowed: the script CAN invoke
+`hermes statuscard --to telegram:Jonas` on a live run, but no
+job YAML and no cron registration exist for it, so nothing
+scheduled sends - shadow silence holds. If it is ever
+scheduled, that scheduling is a production-routing decision,
+not a code detail. Verified this session: jobs/ has no fleet
+file, cron has no fleet entry.
+
+## D13. Day-1 verifier prompt left as-is
+
+Prompt (07:56 once-cron) predates the receipt layer but already
+reads executions.db + summary receipt + EventStores directly.
+
+Options: (a) rewrite it around receipts; (b) leave it.
+
+Choice: (b). Minimal touch on a live one-shot: its evidence
+sources are sufficient for a day-1 verdict, and the receipt
+aggregator + 08:00 rollup cover every day after. Rewriting a
+scheduled prompt hours before it fires adds risk for no new
+verdict power.
