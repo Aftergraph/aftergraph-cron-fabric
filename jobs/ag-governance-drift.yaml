@@ -9,12 +9,19 @@ job_type: constrained_terminal
 detection_slo: {p50_max: 6h, p95_max: 12h}
 rollback: cronjob_manage update job_id pause (list first)
 prompt: |
-  Read-only governance drift check. For each entry in
-  contracts/sources.yaml compare the canonical_repo artifact against
-  its mirrors (aie.terminology stays research-track owned by aie -
-  never flag research terms as drift against governance). Use
-  scripts/gh-read.sh (GET only) plus scripts/event_store.py dedupe.
-  Emit notify only on new/changed fingerprint. Never merge, push,
-  deploy, or read secrets.
+  Read-only governance drift check. First establish topology truth:
+  fetch the live Aftergraph repository list via scripts/gh-read.sh (GET
+  only) and compare repository identity, visibility and canonical branch
+  against contract organization.topology in contracts/sources.yaml
+  (Aftergraph/after-graph-governance docs/platform-topology/1.0.json).
+  Classify temporary/incubation repos explicitly; repo existence MUST NOT
+  upgrade maturity or authority. Only after topology is current, inspect
+  the remaining contracts/sources.yaml entries against their declared
+  canonical owners and mirrors. aie.terminology stays research-owned by
+  AIE and must not be normalized to governance terminology. Use
+  EventStore.claim_event() for actual findings; same fingerprint is silent.
+  Emit only evidenced topology/ownership/contract drift, not ordinary repo
+  churn. Never merge, push, deploy, approve, delete, write to repos, or
+  read secrets.
 continuity: true
 enabled_toolsets: [terminal]
