@@ -103,6 +103,19 @@ with a deployment receipt.
   a consumed slot - the 09:00 tick should fire normally. Verify the
   output dir after ~09:15; if empty, escalate to owner (no scheduler
   hacking).
+  [07:55 ROOT CAUSE FALSIFIED 09:15 - SOURCE-VERIFIED] The 09:00 tick
+  did NOT dispatch: scheduler log 09:00:08 ran dependabot + one
+  no_agent job, no sentinel line; executions.db has NO 09:00 row;
+  jobs.json next_run jumped to 09-09. Hermes source cron/jobs.py
+  L2928-2934: `if not manual_run and completed_occurrence(job,
+  next_run): advance next_run; return False` - the 01:25 direct run
+  (scheduled_instant=2026-09-08T07:00:00+00:00 = 09:00 local) DID
+  consume the slot. scheduled_instant IS a consumed-slot marker, not
+  informational. Consequence: canary's Oct-1 tick will be suppressed
+  the same way. Recovery used: manual fire (job ENABLED, pause flag
+  clear) dispatched immediately - 09:12 direct run, status running.
+  Verify output after it lands; then decide next scheduled tick
+  strategy (job stays enabled; only ONE direct fire per tick-slot).
   LIVE-PROMPT FIX 08:08: live job 50159b84a34f was created 01:24:47,
   four minutes BEFORE the prompt tightening commit 65ea0ea
   (01:29:01), and later manual runs never dispatched - so the live
