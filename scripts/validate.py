@@ -1,4 +1,5 @@
-"""Validate jobs/*.yaml: interface, schedule grammar and safety boundaries."""
+"""Validate jobs/*.yaml and the topology role coverage policy."""
+import json
 import re
 import sys
 from pathlib import Path
@@ -91,6 +92,56 @@ def job_errors(job, d):
     return errors
 
 
+def coverage_errors(path=Path("contracts/coverage-policy.json")):
+    """Validate role policy shape without duplicating Governance repo identity.
+
+    Completeness against the live topology is intentionally a runtime
+    ag-governance-drift responsibility. CI only proves the policy itself is
+    unambiguous and points at the canonical topology owner.
+    """
+    errors = []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except Exception as exc:
+        return [f"coverage policy unreadable: {exc}"], 0
+
+    if data.get("schema_version") != "cron-coverage-policy/1.0":
+        errors.append("coverage policy: bad schema_version")
+    topology = data.get("topology_contract", {})
+    if topology.get("repo") != "Aftergraph/after-graph-governance":
+        errors.append("coverage policy: topology owner must be Aftergraph/after-graph-governance")
+    if topology.get("path") != "docs/platform-topology/1.0.json":
+        errors.append("coverage policy: unexpected topology path")
+
+    concerns = data.get("concerns")
+    if not isinstance(concerns, dict) or not concerns:
+        errors.append("coverage policy: concerns missing")
+        return errors, 0
+
+    role_owner = {}
+    for concern, cfg in concerns.items():
+        roles = cfg.get("roles") if isinstance(cfg, dict) else None
+        if not isinstance(roles, list) or not roles:
+            errors.append(f"coverage policy: {concern} has no roles")
+            continue
+        if not cfg.get("disposition"):
+            errors.append(f"coverage policy: {concern} missing disposition")
+        for role in roles:
+            if not isinstance(role, str) or not role:
+                errors.append(f"coverage policy: invalid role in {concern}")
+                continue
+            if role in role_owner:
+                errors.append(
+                    f"coverage policy: role {role} mapped twice: {role_owner[role]}, {concern}")
+            else:
+                role_owner[role] = concern
+
+    for special in data.get("special_rules", {}):
+        if special not in role_owner:
+            errors.append(f"coverage policy: special role {special} is not mapped to a concern")
+    return errors, len(role_owner)
+
+
 def main():
     jobs = sorted(Path("jobs").glob("*.yaml")) + sorted(
         Path("jobs/legacy").glob("*.yaml"))
@@ -106,10 +157,13 @@ def main():
                 errors.append(f"{job.name}: duplicate canonical job name also in {seen[name]}")
             else:
                 seen[name] = str(job)
+
+    cov_errors, role_count = coverage_errors()
+    errors += cov_errors
     if errors:
         print("\n".join(errors))
         return 1
-    print(f"VALIDATE-OK: {len(jobs)} jobs")
+    print(f"VALIDATE-OK: {len(jobs)} jobs; COVERAGE-POLICY-OK: {role_count} roles")
     return 0
 
 
