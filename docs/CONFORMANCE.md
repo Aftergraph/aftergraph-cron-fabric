@@ -37,6 +37,7 @@ mechanically with one command.
 | 11 | Delivery receipt contract (sha256-attested, deterministic filename) | docs/delivery-receipts-spec.md + delivery_canary.py self-test + test_behavior: "delivery canary self-test with synthetic receipt" | python3 tests/test_behavior.py |
 | 11 | Delivery canary fails closed (no receipt / tampered sha / wrong fingerprint) | test_behavior: 3 fail-closed checks | python3 tests/test_behavior.py |
 | 12 | Canary pair as one invariant (state proves local, delivery proves external, neither alone sufficient) | docs/canary-pair-architecture.md + both canary scripts + receipt specs | n/a (architectural doc) |
+| 13 | v0.5 P0 fabric concern sensors (merge-queue-stall, org-suite-liveness, public-provenance, research-freeze-watch) | scripts/sensors/{merge_queue_stall,org_suite_liveness,public_provenance,research_freeze_watch}.py + jobs/*.yaml + test_behavior: 7 checks per sensor | python3 tests/test_behavior.py |
 
 ## Quick conformance check
 

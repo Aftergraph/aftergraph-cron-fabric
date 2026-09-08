@@ -1,0 +1,17 @@
+name: ag-public-provenance
+schedule: every 6h
+deliver: telegram-ops-topic
+severity: info
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: no_agent
+job_type: script_only
+detection_slo: {p50_max: 12h, p95_max: 24h}
+rollback: cronjob_manage update job_id pause (list first)
+script: scripts/sensors/public_provenance.py
+# Catches provenance drift between Aftergraph's public surfaces and
+# the canonical sources they reference. Distinct from "docs changed":
+# a public surface can be perfectly healthy while citing a stale pin.
+# Currently watches three surfaces (docs, aftergraph.org, brand)
+# against three contracts in contracts/sources.yaml (wi.observation,
+# brand.identity). Extend by adding entries to PROVENANCE_PAIRS.

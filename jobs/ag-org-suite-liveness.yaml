@@ -1,0 +1,19 @@
+name: ag-org-suite-liveness
+schedule: every 6h
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: no_agent
+job_type: script_only
+detection_slo: {p50_max: 12h, p95_max: 24h}
+rollback: cronjob_manage update job_id pause (list first)
+script: scripts/sensors/org_suite_liveness.py
+# Proves the shared polyrepo integration machinery actually ran in the
+# last 24h. CI tells us when a test fails; this tells us when the test
+# that should have run never ran.
+# Classification:
+#   ORG-SUITE-VERIFIED  all expected core repos had a fresh run
+#   ORG-SUITE-PENDING   <=20% missing within tolerance
+#   ORG-SUITE-DEGRADED  >20% missing
+#   ORG-SUITE-MISSED    no fresh runs reachable at all

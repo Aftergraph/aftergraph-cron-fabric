@@ -1,0 +1,18 @@
+name: ag-research-freeze-watch
+schedule: every 6h
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: no_agent
+job_type: script_only
+detection_slo: {p50_max: 12h, p95_max: 24h}
+rollback: cronjob_manage update job_id pause (list first)
+script: scripts/sensors/research_freeze_watch.py
+# Detects mutation of preregistered / frozen research artifacts
+# without a corresponding amendment. ISR's study011 lockfile is the
+# canonical pattern. Reads contracts/freeze-manifest.yaml for
+# registered entries and contracts/freeze-amendments.yaml for
+# authorised drift. No manifest = no obligation = no false alarm.
+# Emits research-freeze-breach|repo|path|sha12 on drift without
+# amendment cover.

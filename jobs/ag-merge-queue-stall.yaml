@@ -1,0 +1,17 @@
+name: ag-merge-queue-stall
+schedule: every 2h
+deliver: telegram-ops-topic
+severity: warning
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: no_agent
+job_type: script_only
+detection_slo: {p50_max: 6h, p95_max: 12h}
+rollback: cronjob_manage update job_id pause (list first)
+script: scripts/sensors/merge_queue_stall.py
+# Reads open PRs in queue-protected repos (currently governance).
+# Emits merge-queue-stall|repo|pr-number|head-sha only when ALL hold:
+#   - state OPEN, mergeable MERGEABLE, mergeStateStatus BLOCKED
+#   - autoMergeRequest set, at least one SUCCESS check
+#   - age > stall_window (90 min) with no enqueue/dequeue/merge_group signal
+# Observation only; never enqueues, merges, or modifies.
