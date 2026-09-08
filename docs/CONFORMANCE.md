@@ -1,4 +1,4 @@
-# Conformance Map — aftergraph-cron-fabric
+# Conformance Map - aftergraph-cron-fabric
 
 This document maps every spec section (CHATGPT-REVIEW-SPEC.md) to the
 corresponding verification artifact.  A reviewer can check each row
