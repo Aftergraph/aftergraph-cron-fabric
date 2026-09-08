@@ -11,7 +11,10 @@
   ambiguity (suppressed tick looks like a fired one from jobs.json
   alone). 2 behavior checks.
 - retry_after_seconds() in sensor_guard.py: RFC 9110 Retry-After parsing
-  (delta-seconds + HTTP-date). 4 new behavior checks; suite now 31.
+  (delta-seconds + HTTP-date). 4 new behavior checks.
+- Job catalog pinned in tests: 8 core + 1 canary + 1 legacy = 10 jobs,
+  4 new behavior checks (catches count prose-drift like the v0.2 9-vs-10
+  bug). Suite now 35.
 
 ### Verified 2026-09-08
 - Sentinel release sensor re-proven live: manual fire 09:12 -> completed

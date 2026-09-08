@@ -147,6 +147,34 @@ check("retry-after garbage -> None",
 check("retry-after past date -> None",
       retry_after_seconds("Wed, 21 Oct 2015 07:28:00 GMT") is None)
 
+# 10c. job catalog pinned: 8 core + 1 canary + 1 legacy = 10 total
+# (spec #4 counts, §1, §5). Prose drift caught by this check.
+# NOTE: no `import yaml` here - CI runners do not ship PyYAML.
+import glob as _glob
+_core_files = sorted(_glob.glob(str(ROOT / "jobs" / "*.yaml")))
+_legacy_files = sorted(_glob.glob(str(ROOT / "jobs" / "legacy" / "*.yaml")))
+
+def _job_name(path):
+    for _line in open(path, encoding="utf-8"):
+        if _line.startswith("name:"):
+            return _line.split(":", 1)[1].strip()
+    return None
+
+_core_names = sorted(_job_name(f) for f in _core_files)
+_legacy_names = sorted(_job_name(f) for f in _legacy_files)
+_core_schedules = [
+    "ag-runtime-paritet", "ag-wi-contract", "ag-governance-drift",
+    "ag-claim-watch", "ag-research-evidence", "ag-vault-watch",
+    "ag-vault-freshness", "ag-sentinel-release"]
+check("catalog: 8 core schedules match spec §5",
+      set(_core_schedules) == set(_core_names) - {"ag-fabric-canary"}
+      and len(_core_names) == 9)  # 8 core + 1 canary
+check("catalog: canary present", "ag-fabric-canary" in _core_names)
+check("catalog: 1 legacy-local",
+      _legacy_names == ["ag-legacy-noise-gate"])
+check("catalog: 10 jobs total",
+      len(_core_files) + len(_legacy_files) == 10)
+
 # 11. verify_tick.py: suppressed slot must FAIL, healthy slot must PASS
 import sqlite3 as _sql, json as _json
 import subprocess as _sp
