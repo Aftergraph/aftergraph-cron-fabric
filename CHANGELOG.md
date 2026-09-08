@@ -17,6 +17,9 @@
 - Phase 1 live end-to-end COMPLETE: all 4 monitored jobs now have
   verified live runs (canary, runtime-paritet, wi-contract,
   sentinel-release).
+- CI completeness: canary self-test added to ci.yml (spec section 8
+  "CI runs all three" now true - was validate + behavior only); verified
+  green in job steps on 614da01.
 
 ### Added
 - Initial 7-job fabric + review spec.
