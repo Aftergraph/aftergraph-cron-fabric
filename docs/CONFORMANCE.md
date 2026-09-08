@@ -6,7 +6,7 @@ mechanically with one command.
 
 | Spec section | Claim | Verification | Command |
 |---|---|---|---|
-| 1 | 16 YAML files (14 core + 1 state canary + 1 legacy-local) | test_behavior: catalog pinning | python3 tests/test_behavior.py |
+| 1 | 16 YAML files (15 jobs/ + 1 jobs/legacy) | test_behavior: catalog pinning | python3 tests/test_behavior.py |
 | 1 | jobs/ directory layout matches spec | test_behavior: YAML content validation | python3 tests/test_behavior.py |
 | 2 | Event state machine (OPEN/HEALTHY -> EMIT/RESOLVED) | event_store.py + test_behavior: "resolve closes" + "return EMITs again" | python3 tests/test_behavior.py |
 | 2 | Typed evidence required on every notify+ | sensor_guard + test_behavior: "typed evidence guard" | python3 tests/test_behavior.py |
@@ -21,7 +21,7 @@ mechanically with one command.
 | 5 | Audit log | event_store.py: log_audit + test_behavior: "record writes receipt" | python3 tests/test_behavior.py |
 | 7 | CI runs validate + tests + canary | CI workflow (.github/workflows/ci.yml) | gh api .../check-runs |
 | 8 | validate.py validates 16 YAML files | validate.py output | python3 scripts/validate.py jobs |
-| 8 | test_behavior.py runs 92 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
+| 8 | test_behavior.py runs 111 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
 | 8 | Canary self-test | canary.py exit 0 | python3 scripts/sensors/canary.py |
 | 8 | Canary --on-demand pre-deploy probe | canary --on-demand: EMIT -> OK (non-destructive) | python3 scripts/sensors/canary.py --on-demand |
 | 9 | Duplicate rate measurable | verify_slo.py check_duplicate_rate | python3 scripts/verify_slo.py --jobs-dir jobs --events-db state/events.sqlite --canary-db state/canary.sqlite --executions-db EXEC_DB --jobs-json JOBS_JSON |
@@ -42,7 +42,7 @@ mechanically with one command.
 | 13.2 | public-provenance scope from contracts/sources.yaml | scripts/sensors/public_provenance.py + test_behavior: "public-provenance reads from contracts/sources.yaml" | python3 tests/test_behavior.py |
 | 13.3 | research-freeze-watch scope from freeze manifest + amendments | contracts/freeze-manifest.yaml + contracts/freeze-amendments.yaml + test_behavior: "research-freeze-watch reads freeze manifest" + "reads amendments" | python3 tests/test_behavior.py |
 | 13.4 | org-suite-liveness CORE_REPOS is a documented module-level constant (not yet policy-driven) | test_behavior: "org-suite-liveness: CORE_REPOS is a module-level constant (documented)" | python3 tests/test_behavior.py |
-| 14 | v0.5.1 synthetic proof: all four P0 sensors detect their failure class offline, no live GitHub, no skip counted as proof | tests/test_synthetic_fixtures.py: FIXTURES-OK 16/16 | python3 tests/test_synthetic_fixtures.py |
+| 14 | v0.5.1 synthetic proof: all four P0 sensors detect their failure class offline, no live GitHub, no skip counted as proof | tests/test_synthetic_fixtures.py: FIXTURES-OK 17/17 | python3 tests/test_synthetic_fixtures.py |
 | 14.1 | Cross-run dedupe: persistent per-sensor EventStore; repeat finding SILENCEs across runs | test_synthetic_fixtures: dedupe scenarios (merge-queue repeat, provenance repeat, freeze repeat) | python3 tests/test_synthetic_fixtures.py |
 | 14.2 | Observed recovery: stalled -> RESOLVED (HEALTHY) -> re-arm -> EMIT again | test_synthetic_fixtures: merge-queue resolved_then_rearm scenario | python3 tests/test_synthetic_fixtures.py |
 | 14.3 | Daily shadow summary receipt (immutable, one per day, no Telegram delivery) | scripts/v05_shadow_summary.py + jobs/ag-v05-shadow-summary.yaml + deploy/receipts/v05-shadow-summary-*.json (live, gitignored) | python scripts/v05_shadow_summary.py |
@@ -54,7 +54,7 @@ Run the following to verify all spec claims in one pass:
 
 ```
 python3 scripts/validate.py jobs       # 16 jobs
-python3 tests/test_behavior.py         # 92 behavioral checks
+python3 tests/test_behavior.py         # 111 behavioral checks
 python3 scripts/sensors/canary.py      # canary self-test
 ```
 
