@@ -113,6 +113,24 @@ check("crash visible", r.returncode != 0 and "boom" in r.stderr)
 b0, b3 = backoff(0, base=5.0, cap=120.0), backoff(3, base=5.0, cap=120.0)
 check("backoff grows", 5.0 <= b0 <= 6.0 and b3 > b0)
 
+# 10. continuity forbidden on watch jobs (spec #5), allowed on deep audits
+from validate import job_errors, NO_CONTINUITY
+_tmp = tempfile.mkdtemp()
+_watch = Path(_tmp, "ag-claim-watch.yaml"); _watch.write_text("name: ag-claim-watch\n", encoding="utf-8")
+_deep = Path(_tmp, "ag-governance-drift.yaml"); _deep.write_text("name: ag-governance-drift\n", encoding="utf-8")
+_base = {"schedule": "every 6h", "read_only": "true", "severity": "info",
+         "allowed_dispositions": "notify", "mode": "agent", "prompt": "x",
+         "enabled_toolsets": "git"}
+check("watch continuity rejected",
+      any("continuity forbidden" in e for e in
+          job_errors(_watch, dict(_base, continuity={"key": "k"}))))
+check("deep-audit continuity allowed",
+      not any("continuity forbidden" in e for e in
+              job_errors(_deep, dict(_base, continuity={"key": "k"}))))
+check("continuity allowlist matches spec #5",
+      NO_CONTINUITY == {"ag-claim-watch", "ag-vault-watch",
+                        "ag-sentinel-release", "ag-legacy-noise-gate"})
+
 print(f"\nBEHAVIOR-OK: {passed} checks")
 
 

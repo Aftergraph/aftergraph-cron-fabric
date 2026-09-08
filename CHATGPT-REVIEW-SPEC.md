@@ -29,7 +29,9 @@
 - #5 dedupe ownership -> event_store = authoritative event lifecycle +
   delivery dedupe. monitor/wake = cost gate only. continuity = reasoning
   context only, kept ONLY on deep audits (removed from claim-watch,
-  vault-watch, sentinel-release, legacy-noise-gate).
+  vault-watch, sentinel-release, legacy-noise-gate). Enforced by
+  validator (NO_CONTINUITY allowlist) + 3 new tests (watch rejected,
+  deep-audit allowed, allowlist pinned).
 - #6 expires lifecycle -> reconcile.py plan() takes expired set:
   desired_state retired -> reconciler pauses/removes live job + emits
   receipt. Adopted your simpler model: ag-sentinel-release is permanent
@@ -102,7 +104,7 @@ across processes; tokens read-only scoped at rollout (Phase 0 item).
 
 ## 8. Testing
 
-validate.py (10 jobs) + test_behavior.py (22 checks) + canary.py
+validate.py (10 jobs) + test_behavior.py (25 checks) + canary.py
 self-test. CI runs all three. Output schema: typed evidence on every
 notify+ (require_typed_evidence).
 
