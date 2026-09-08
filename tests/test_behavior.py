@@ -837,5 +837,55 @@ check("delivery canary fails closed on wrong-fingerprint receipt",
       _r.returncode == 1
       and ("fingerprint" in _r.stdout.lower()
            or "mismatch" in _r.stdout.lower()))
+
+# 73. receipt-bridge -> delivery-canary chain (offline Phase C):
+# the bridge's OWN writer produces bytes the canary accepts.
+# No live send: the proof gate in main() stays out of scope;
+# what is proven is that bridge-shaped receipts verify.
+_bc_dir = tempfile.mkdtemp()
+Path(_bc_dir, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_bc_dir, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+_bc_env = os.environ.copy()
+_bc_env["AG_FABRIC_ROOT"] = str(_bc_dir)
+_bc_prev_root = os.environ.get("AG_FABRIC_ROOT")
+os.environ["AG_FABRIC_ROOT"] = str(_bc_dir)
+sys.path.insert(0, str(ROOT / "scripts"))
+sys.path.insert(0, str(ROOT / "scripts" / "sensors"))
+import delivery_canary as _dc_mod
+import telegram_receipt_bridge as _br_mod
+if _bc_prev_root is None:
+    del os.environ["AG_FABRIC_ROOT"]
+else:
+    os.environ["AG_FABRIC_ROOT"] = _bc_prev_root
+_bc_fp = _dc_mod.EventStore.fingerprint(_dc_mod.KEY, "delivery:probe")
+_bc_body = _br_mod.build_receipt_body(
+    _dc_mod.KEY, _bc_fp, "telegram:ops", "chain-test-stub")
+_bc_out = _br_mod.write_delivery_receipt(_bc_body)
+assert _bc_out.is_file(), "bridge writer produced no receipt file"
+_r = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py")],
+    capture_output=True, text=True, env=_bc_env, cwd=str(_bc_dir))
+check("bridge receipt accepted by delivery canary (offline Phase C chain)",
+      _r.returncode == 0 and "DELIVERY-CANARY-OK" in _r.stdout)
+
+# 74. chain fails closed when a bridge-shaped receipt is rebound to a
+# different fingerprint (self-attestation valid, binding wrong).
+_bc_parsed = json.loads(_bc_out.read_text(encoding="utf-8"))
+_bc_parsed["fingerprint"] = "e" * 16
+_bc_canon = json.dumps(
+    {k: v for k, v in _bc_parsed.items() if k != "sha256"},
+    sort_keys=True, separators=(",", ":"))
+import hashlib as _bc_hl
+_bc_parsed["sha256"] = _bc_hl.sha256(_bc_canon.encode("utf-8")).hexdigest()
+_bc_out.write_text(json.dumps(_bc_parsed, indent=2, sort_keys=True),
+                   encoding="utf-8")
+_r = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py")],
+    capture_output=True, text=True, env=_bc_env, cwd=str(_bc_dir))
+check("chain fails closed on rebound bridge receipt",
+      _r.returncode == 1 and "fingerprint" in _r.stdout.lower())
 print(f"\nBEHAVIOR-OK: {passed} checks")
 

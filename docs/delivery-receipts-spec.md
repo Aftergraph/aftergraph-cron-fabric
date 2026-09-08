@@ -196,7 +196,7 @@ The full chain has been executed live against the real renderer
    fingerprint binding, and records replay SILENCE.
 
 Verified outputs from the live run:
-- `DELIVERY-BRIDGE-OK: delivery-3381fd9db8ad4f40.json`
+- `RECEIPT-BRIDGE-OK: delivery-3381fd9db8ad4f40.json`
 - `DELIVERY-CANARY-OK: claim -> receipt observed -> sha256 verified
   -> replay SILENCE` (run twice; second run also SILENCE = replay
   does not duplicate)
