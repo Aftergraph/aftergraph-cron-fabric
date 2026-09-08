@@ -25,6 +25,9 @@
   SLO-VERIFIED; 10 slow runs (3h vs p50_max 2h) -> exit 1 VIOLATION.
   2 new behavior checks. Suite now 40.
 - CONFORMANCE.md: spec-section -> verification command map for reviewers.
+- verify_tick 'builtin' source test: Hermes records scheduled cron runs
+  as source=builtin (not scheduler); a completed builtin execution must
+  pass TICK-VERIFIED. 1 new behavior check. Suite now 41.
 
 ### Verified 2026-09-08
 - Sentinel release sensor re-proven live: manual fire 09:12 -> completed

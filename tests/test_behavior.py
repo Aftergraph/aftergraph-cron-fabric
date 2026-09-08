@@ -222,6 +222,22 @@ _r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_tick.py"),
              capture_output=True, text=True, cwd=str(ROOT))
 check("tick verify PASSes consumed slot", _r.returncode == 0
       and "TICK-VERIFIED" in _r.stdout)
+# Hermes records scheduled runs as source='builtin', not 'scheduler'.
+# A 'builtin' execution must also pass the non-manual_run check.
+_con = _sql.connect(str(_db))
+_con.execute("DELETE FROM executions")
+_con.execute("INSERT INTO executions VALUES ('e2','j1','builtin','completed',"
+             "'2026-08-09T07:00:00+00:00', ?, ?)",
+             (_slot_epoch + 60, _slot_epoch + 300))
+_con.commit(); _con.close()
+(_out / "2026-09-09_09-00-01.md").write_text("EMIT\n", encoding="utf-8")
+_r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_tick.py"),
+              "--jobs-json", str(_jobs), "--executions-db", str(_db),
+              "--output-dir", str(_out), "--job-name", "ag-sentinel-release",
+              "--job-id", "j1", "--slot", _slot],
+             capture_output=True, text=True, cwd=str(ROOT))
+check("tick verify PASSes Hermes 'builtin' source run", _r.returncode == 0
+      and "TICK-VERIFIED" in _r.stdout)
 
 print(f"\nBEHAVIOR-OK: {passed} checks")
 
