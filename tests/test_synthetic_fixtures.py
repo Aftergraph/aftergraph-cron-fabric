@@ -427,7 +427,7 @@ def test_org_suite_liveness_sensor_degraded_on_api_failure():
 # ---------- public-provenance fixture tests ----------
 
 def test_public_provenance_clean_pin():
-    """Pin matches canonical -> CLEAN (emitted=0)."""
+    """All pins match canonical HEADs -> CLEAN (emitted=0)."""
     sha = "0123456789abcdef0123456789abcdef01234567"
     fixture = {
         "canonical": {
@@ -436,16 +436,15 @@ def test_public_provenance_clean_pin():
             "Aftergraph/brand": sha,
         },
         "surface_pin": {
-            "Aftergraph/docs:developers/api/index.md": sha,
-            "Aftergraph/aftergraph.org:src/content/products/wie.md":
-                sha,
-            "Aftergraph/brand:docs/canonical/masterbrand.md": sha,
+            "Aftergraph/docs": sha,
+            "Aftergraph/aftergraph.org": sha,
+            "Aftergraph/brand": sha,
         },
     }
     rc, lines, _, _ = _run_sensor_offline(
         "public_provenance.py", fixture)
     assert rc == 0
-    assert any("PUBLIC-PROVENANCE-OK: emitted=0" in l
+    assert any("emitted=0" in l and "checked=3" in l
                for l in lines), lines
 
 
@@ -459,7 +458,7 @@ def test_public_provenance_stale_pin_emit():
             "Aftergraph/docs": canonical_sha,
         },
         "surface_pin": {
-            "Aftergraph/docs:developers/api/index.md": stale_sha,
+            "Aftergraph/docs": stale_sha,
         },
     }
     # First run: STALE_PIN EMIT
@@ -474,8 +473,18 @@ def test_public_provenance_stale_pin_emit():
     rc, lines, _ = _rerun_sensor(
         "public_provenance.py", fixture, wd, env)
     assert rc == 0
-    assert any("PUBLIC-PROVENANCE-OK: emitted=0" in l
-               for l in lines), lines
+    assert any("emitted=0" in l for l in lines), lines
+    assert not any("PUBLIC-PROVENANCE-EMIT" in l for l in lines), lines
+
+
+def test_public_provenance_degraded_surface():
+    """Unreadable surface (no pins) -> SENSOR-DEGRADED, never a
+    fabricated CLEAN or EMIT."""
+    fixture = {"canonical": {}, "surface_pin": {}}
+    rc, lines, _, _ = _run_sensor_offline(
+        "public_provenance.py", fixture)
+    assert rc == 0
+    assert any("PUBLIC-PROVENANCE-DEGRADED" in l for l in lines), lines
     assert not any("PUBLIC-PROVENANCE-EMIT" in l for l in lines), lines
 
 
@@ -486,8 +495,7 @@ def test_public_provenance_repaired_pin():
     # Start with stale -> EMIT
     fixture_stale = {
         "canonical": {"Aftergraph/docs": sha},
-        "surface_pin": {
-            "Aftergraph/docs:developers/api/index.md": stale},
+        "surface_pin": {"Aftergraph/docs": stale},
     }
     rc, lines, _, _ = _run_sensor_offline(
         "public_provenance.py", fixture_stale)
@@ -495,14 +503,12 @@ def test_public_provenance_repaired_pin():
     # Repair: pin now matches canonical
     fixture_repaired = {
         "canonical": {"Aftergraph/docs": sha},
-        "surface_pin": {
-            "Aftergraph/docs:developers/api/index.md": sha},
+        "surface_pin": {"Aftergraph/docs": sha},
     }
     rc, lines, _, _ = _run_sensor_offline(
         "public_provenance.py", fixture_repaired)
     assert rc == 0
-    assert any("PUBLIC-PROVENANCE-OK: emitted=0" in l
-               for l in lines), lines
+    assert any("emitted=0" in l for l in lines), lines
     assert not any("PUBLIC-PROVENANCE-EMIT" in l for l in lines), lines
 
 
@@ -669,6 +675,8 @@ def _run_all():
          test_public_provenance_clean_pin),
         ("public_provenance: stale pin -> EMIT, repeat -> SILENCE",
          test_public_provenance_stale_pin_emit),
+        ("public_provenance: degraded surface -> SENSOR-DEGRADED",
+         test_public_provenance_degraded_surface),
         ("public_provenance: repaired pin -> CLEAN",
          test_public_provenance_repaired_pin),
         # research-freeze-watch
