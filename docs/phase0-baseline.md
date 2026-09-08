@@ -103,6 +103,14 @@ with a deployment receipt.
   a consumed slot - the 09:00 tick should fire normally. Verify the
   output dir after ~09:15; if empty, escalate to owner (no scheduler
   hacking).
+  LIVE-PROMPT FIX 08:08: live job 50159b84a34f was created 01:24:47,
+  four minutes BEFORE the prompt tightening commit 65ea0ea
+  (01:29:01), and later manual runs never dispatched - so the live
+  prompt was the weak pre-tightening text (confirmed via list:
+  different opening). Live prompt just updated via cronjob tool to
+  the tightened repo text (verified in update response); schedule,
+  enabled state, deliver=local and next_run 09:00 all intact.
+  The 09:00 tick now runs the numbered-endpoint prompt.
 - All created with deliver=local + workdir=repo root + terminal-only
   toolset, then paused. Paused jobs refuse manual run: proof flow is
   resume -> run -> re-pause on outcome.
