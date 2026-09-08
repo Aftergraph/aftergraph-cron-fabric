@@ -123,21 +123,34 @@ def write_delivery_receipt(body, receipts_dir=None):
     return out
 
 
+def _build_renderer_cmd(task_id, message, producer=None):
+    """Build the exact renderer argv (no shell, no execution).
+
+    Extracted so behavior tests can freeze the telegram-live-status
+    plugin-call contract: one renderer, one persistent message per
+    task, revision-guarded edits. NOTE: --to is pinned to
+    telegram:Jonas independent of the receipt channel; that pinning
+    is operator choice, not derived routing - do not "fix" it
+    without an owner decision.
+    """
+    return ["hermes", "statuscard", "--to", "telegram:Jonas",
+            "--task", task_id, "--event",
+            json.dumps({
+                "task_id": task_id,
+                "status": "RUNNING",
+                "message": message,
+                "producer": producer or "cron-fabric-receipt-bridge",
+                "revision": int(time.time()),
+            })]
+
+
 def _send_via_renderer(task_id, message, producer=None):
     """Send one card through the canonical renderer. We deliberately go
     through `hermes statuscard` (the plugin CLI) rather than shelling
     into the skill's scripts, because the skill contract requires
     producers to converge on one renderer, one persistent message_id
     per task, and revision-guarded edits. Returns (ok, detail)."""
-    cmd = ["hermes", "statuscard", "--to", "telegram:Jonas",
-           "--task", task_id, "--event",
-           json.dumps({
-               "task_id": task_id,
-               "status": "RUNNING",
-               "message": message,
-               "producer": producer or "cron-fabric-receipt-bridge",
-               "revision": int(time.time()),
-           })]
+    cmd = _build_renderer_cmd(task_id, message, producer=producer)
     try:
         out = subprocess.run(cmd, capture_output=True, text=True,
                              timeout=60)
