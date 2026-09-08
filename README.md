@@ -42,6 +42,10 @@ cat docs/CONFORMANCE.md              # spec-section -> proof command map
 - `python3 tests/test_behavior.py` - atomic event dedupe, typed evidence,
   guards, cross-process semaphore and exactly-one event claim.
 - `python3 scripts/sensors/canary.py` - local EventStore state-canary.
+- `python3 scripts/sensors/delivery_canary.py` - receipt-observing
+  delivery canary. Run with `--synthesize-receipt` to prove the
+  consumption path end-to-end; run plain against a renderer-produced
+  receipt to verify a real Telegram delivery path.
 - `python3 scripts/verify_slo.py ...` - machine-checkable event/evidence/runtime
   SLO metrics when live execution data is supplied.
 
@@ -74,9 +78,10 @@ One job at a time; start paused, enable after clean proof.
 jobs/                   # one YAML per cron job
 scripts/validate.py     # schema + boundary validation
 scripts/event_store.py  # authoritative atomic event lifecycle/dedupe
-scripts/sensors/        # cheap deterministic pre-checks + state canary
+scripts/sensors/        # cheap deterministic pre-checks + state canary + delivery canary
 contracts/sources.yaml  # canonical artifact owners and concrete mirrors
 docs/architecture.md    # sensor -> state -> dedupe -> evidence -> Telegram
+docs/delivery-receipts-spec.md # normative contract for what a Telegram renderer must write so the delivery canary can verify it
 docs/brand.md           # brand contract
 CHATGPT-REVIEW-SPEC.md  # reviewable spec
 CHANGELOG.md SECURITY.md CONTRIBUTING.md CODEOWNERS .env.example

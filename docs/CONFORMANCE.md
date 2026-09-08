@@ -34,6 +34,8 @@ mechanically with one command.
 | 10.1 | SQLite chosen over file-lock | test_behavior: xproc semaphore test (3 holders + 1 contender) | python3 tests/test_behavior.py |
 | 10.2 | Canary --on-demand pre-deploy | scripts/sensors/canary.py --on-demand | python3 scripts/sensors/canary.py --on-demand |
 | 10.3 | Ack re-arms event (not permanent freeze) | test_behavior: "resolve closes" + "return EMITs again" + event_store.py | python3 tests/test_behavior.py |
+| 11 | Delivery receipt contract (sha256-attested, deterministic filename) | docs/delivery-receipts-spec.md + delivery_canary.py self-test + test_behavior: "delivery canary self-test with synthetic receipt" | python3 tests/test_behavior.py |
+| 11 | Delivery canary fails closed (no receipt / tampered sha / wrong fingerprint) | test_behavior: 3 fail-closed checks | python3 tests/test_behavior.py |
 
 ## Quick conformance check
 
