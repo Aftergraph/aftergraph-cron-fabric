@@ -106,7 +106,10 @@ across processes; tokens read-only scoped at rollout (Phase 0 item).
 
 validate.py (10 jobs) + test_behavior.py (27 checks) + canary.py
 self-test. CI runs all three. Output schema: typed evidence on every
-notify+ (require_typed_evidence).
+notify+ (require_typed_evidence). scripts/verify_tick.py proves a
+scheduled (not manual) tick consumed its slot: next_run_at advanced,
+completed scheduler-source execution with matching scheduled_instant,
+output file present (exit 0 verified / 1 failed / 2 pending).
 
 ## 9. Rollout + success (updated)
 
