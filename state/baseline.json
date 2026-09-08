@@ -1,0 +1,6 @@
+{
+  "frozen_at": "2026-09-08T13:30:00+02:00",
+  "window_days": 7,
+  "max_daily_emissions": 2,
+  "note": "Frozen from live state/events.sqlite (3 keys, 0.43/day trailing 7d). Reference, not scratch: force-added despite state/ ignore. Re-freeze explicitly when alert volume intentionally changes."
+}
