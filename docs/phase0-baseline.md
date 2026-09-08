@@ -95,6 +95,14 @@ with a deployment receipt.
   Decision: leave sentinel ENABLED until the 09:00 scheduled tick and
   use THAT as the re-proof vehicle (read-only, local delivery, zero
   risk) instead of fighting the stuck manual flag. Re-pause after.
+  ROOT CAUSE 07:55 (read-only executions.db query): no stuck/running
+  row exists scheduler-side - later manual runs never dispatched at
+  all (client-side no-op on paused/refire, not a hung execution).
+  The 01:25 direct run's scheduled_instant=09:00 is informational
+  (canary's direct run likewise points at its next tick Oct 1), not
+  a consumed slot - the 09:00 tick should fire normally. Verify the
+  output dir after ~09:15; if empty, escalate to owner (no scheduler
+  hacking).
 - All created with deliver=local + workdir=repo root + terminal-only
   toolset, then paused. Paused jobs refuse manual run: proof flow is
   resume -> run -> re-pause on outcome.
