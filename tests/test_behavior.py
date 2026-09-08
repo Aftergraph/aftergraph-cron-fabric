@@ -802,3 +802,40 @@ for _name in SENSOR_NAMES_FOR_TEST:
           or "ReceiptWriter" in _t)
 
 print(f"\nBEHAVIOR-OK: {passed} checks")
+
+# 72. delivery canary fails closed on WRONG-FINGERPRINT receipt
+# (well-formed, self-consistent sha256, but bound to a different
+# fingerprint than the canary's claim -> receipt proves nothing about
+# THIS claim and must fail closed)
+_dc_dir7 = tempfile.mkdtemp()
+_dc_env7 = os.environ.copy()
+Path(_dc_dir7, "contracts").mkdir(parents=True, exist_ok=True)
+Path(_dc_dir7, "contracts", "sources.yaml").write_text(
+    "# isolated test root\n", encoding="utf-8")
+_dc_env7["AG_FABRIC_ROOT"] = str(_dc_dir7)
+_r0 = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py"),
+     "--synthesize-receipt"],
+    capture_output=True, text=True, env=_dc_env7, cwd=str(_dc_dir7))
+assert _r0.returncode == 0, _r0.stdout + _r0.stderr
+_receipts7 = Path(_dc_dir7) / "deploy" / "delivery-receipts"
+_target = sorted(_receipts7.glob("delivery-*.json"))[-1]
+_parsed7 = json.loads(_target.read_text(encoding="utf-8"))
+# Rewrite the bound fingerprint to a DIFFERENT valid fingerprint, then
+# re-attest honestly (self-sha is valid for the tampered payload).
+_parsed7["fingerprint"] = "f" * 16
+_canon = json.dumps({k: v for k, v in _parsed7.items() if k != "sha256"},
+                    sort_keys=True, separators=(",", ":"))
+import hashlib as _hl
+_parsed7["sha256"] = _hl.sha256(_canon.encode("utf-8")).hexdigest()
+_target.write_text(json.dumps(_parsed7, indent=2, sort_keys=True),
+                   encoding="utf-8")
+_r = _sp.run(
+    [sys.executable,
+     str(ROOT / "scripts" / "sensors" / "delivery_canary.py")],
+    capture_output=True, text=True, env=_dc_env7, cwd=str(_dc_dir7))
+check("delivery canary fails closed on wrong-fingerprint receipt",
+      _r.returncode == 1
+      and ("fingerprint" in _r.stdout.lower()
+           or "mismatch" in _r.stdout.lower()))
