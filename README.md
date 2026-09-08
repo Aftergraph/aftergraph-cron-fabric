@@ -2,7 +2,7 @@
 
 # Aftergraph Cron Fabric
 
-Status: Product baseline v0.3 — 9 schedules / 7 concerns. Phase 1 live proof complete (all 4 monitored jobs verified end-to-end as of 2026-09-08).
+Status: Product baseline v0.3 - 9 schedules / 7 concerns. Phase 1 live proof complete (all 4 monitored jobs verified end-to-end as of 2026-09-08).
 One-line: a small set of Telegram-first scheduled jobs that watch the Aftergraph org and only speak when there is something to act on.
 
 Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is owned by [Aftergraph/brand](https://github.com/Aftergraph/brand); this repo copies no logos or tokens. See [docs/brand.md](docs/brand.md).
@@ -42,7 +42,7 @@ cat CHATGPT-REVIEW-SPEC.md           # the reviewable spec
 Phase 0: reconcile live cron, baseline volumes, scope read-only tokens.
 Phase 1: three jobs paused + manual run + 7-day shadow (see review spec).
 One job at a time; start paused, enable after one clean manual run.
-Status 2026-09-08: Phase 1 live proof COMPLETE — canary, runtime-paritet,
+Status 2026-09-08: Phase 1 live proof COMPLETE - canary, runtime-paritet,
 wi-contract and sentinel-release all verified end-to-end (sentinel first
 full EMIT 09:16:18 with typed evidence, receipt recorded). Jobs stay
 deliver=local / terminal-only until the SHIP gate.
