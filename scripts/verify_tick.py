@@ -51,9 +51,11 @@ def check_slot(jobs, job_name, slot_iso, tz_note="+02:00"):
 
 
 def check_execution(db_path, job_id, slot_iso, window_minutes=60):
-    """A completed scheduler-dispatched execution must exist whose
-    scheduled_instant equals the slot's UTC instant. Manual/direct fires
-    do NOT count (source must be scheduler, not manual_run)."""
+    """A completed non-manual execution must exist whose scheduled_instant
+    is near the slot's UTC instant. source != 'manual_run' (Hermes records
+    scheduled runs as 'builtin'; manual fires as 'direct' or 'manual_run').
+    Only 'manual_run' is excluded - consistent with verify_tick evidence
+    requirements (see CHATGPT-REVIEW-SPEC.md section 9)."""
     errors = []
     slot = datetime.fromisoformat(slot_iso)
     slot_utc = slot.astimezone(timezone.utc)
