@@ -118,14 +118,25 @@ HTTP-date) for 429 handling; unparseable/expired -> None + backoff.
 
 Phase 0: reconcile 14 live jobs, baseline, Ops topic, read-only token
 scoping. Phase 1: 3 jobs paused/manual/shadow (3-way acceptance).
-Success: duplicate rate 0; false INCIDENT 0; canary 100% (emission +
-RESOLVED); evidence completeness 100%; per-job p50/p95 SLOs met;
-volume down vs frozen baseline. scripts/verify_slo.py makes these
-machine-checkable: computes duplicate rate and evidence completeness
-from events.sqlite, canary emission->RESOLVED from canary.sqlite, and
-per-job p50/p95 execution duration vs the detection_slo declared in
-each jobs/*.yaml. Exit 0 all-pass / 1 violation / 2 insufficient data
-(SLOs pending live Phase-1 runs - not yet violated).
+Success: duplicate rate 0; canary 100% (emission +
+RESOLVED, with immutable per-run receipts reconciled against canary
+state); evidence completeness 100%; per-job p50/p95 SLOs met (scheduled
+sources only); volume down vs frozen baseline. scripts/verify_slo.py
+makes these machine-checkable: computes duplicate rate and evidence
+completeness from events.sqlite, canary emission->RESOLVED from
+canary.sqlite, receipt validity + coverage from deploy/receipts,
+trailing-window volume vs state/baseline.json, and per-job p50/p95
+execution duration vs the detection_slo declared in each jobs/*.yaml.
+Fail-closed: unknown execution sources, SLO jobs with no live mapping,
+absent/unreadable state, malformed receipts, unresolved emissions
+without receipts, and missing/invalid baselines are ERRORS, never
+silent skips. Exit 0 all-pass / 1 violation / 2 insufficient data
+(SLOs pending live Phase-1 runs - explicitly not PASS).
+(Removed 2026-09-08: "false INCIDENT 0". No incident tier exists in
+the fabric - highest declared severity is warning/digest, dispositions
+are store/digest, and no INCIDENT designation exists in any job YAML,
+sensor, or table. The claim was unmeasurable. Reintroduce it only with
+a real incident tier plus a machine check.)
 
 ## 10. Open questions - RESOLVED 2026-09-08
 
