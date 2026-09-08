@@ -3,6 +3,11 @@ __pycache__/
 # state/ is runtime scratch (event SQLite, sensor temp). The tree ships
 # no state; code mkdirs what it needs. Never commit scratch.
 state/
+# Canary self-test/probe receipts are per-run machine artifacts: verify_slo
+# reads them from the live dir, but they are never committed (one file per
+# run would spam history). Hand-recorded evidence receipts (e.g.
+# deploy/receipts/ag-sentinel-release.json) stay tracked deliberately.
+deploy/receipts/ag-fabric-canary-*.json
 .env
 .DS_Store
 Thumbs.db
