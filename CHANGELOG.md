@@ -5,7 +5,7 @@
 ### Added 2026-09-08
 - scripts/verify_tick.py: mechanical proof that a scheduled (not manual)
   tick actually fired and consumed its slot - checks jobs.json
-  next_run_at advanced, a completed scheduler-source execution with
+  next_run_at advanced, a completed non-manual execution with matching
   matching scheduled_instant in executions.db, and an output file.
   Exit 0 verified / 1 failed / 2 pending. Kills the last Phase-1
   ambiguity (suppressed tick looks like a fired one from jobs.json

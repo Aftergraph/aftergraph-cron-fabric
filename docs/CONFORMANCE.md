@@ -28,7 +28,7 @@ mechanically with one command.
 | 9 | Evidence completeness measurable | verify_slo.py check_evidence_completeness | (same command) |
 | 9 | Canary emissions complete | verify_slo.py check_canary | (same command) |
 | 9 | Per-job p50/p95 vs detection_slo | verify_slo.py check_slos + test_behavior: "SLO-VERIFIED when runs meet" + "VIOLATION when runs exceed" | python3 tests/test_behavior.py |
-| 9 | Scheduled tick verification | verify_tick.py (next_run_at advanced + scheduler execution) | python3 scripts/verify_tick.py --jobs-json JOBS_JSON --executions-db EXEC_DB |
+| 9 | Scheduled tick verification | verify_tick.py (next_run_at advanced + non-manual execution) | python3 scripts/verify_tick.py --jobs-json JOBS_JSON --executions-db EXEC_DB |
 | 10.1 | SQLite chosen over file-lock | test_behavior: xproc semaphore test (3 holders + 1 contender) | python3 tests/test_behavior.py |
 | 10.2 | Canary --on-demand pre-deploy | scripts/sensors/canary.py --on-demand | python3 scripts/sensors/canary.py --on-demand |
 | 10.3 | Ack re-arms event (not permanent freeze) | test_behavior: "resolve closes" + "return EMITs again" + event_store.py | python3 tests/test_behavior.py |
