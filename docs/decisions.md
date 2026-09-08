@@ -87,3 +87,21 @@ net: -40 lines possible, all cut (Semaphore class, import
 indirection, duplicated scan loop, dead --apply). No new speculative
 abstractions added (--record has exactly one caller path: the rollout
 operator).
+
+## D8. Reconciler audit residuals (day session, verified, no code change)
+
+- Legacy create advisory correctly skipped: desired_jobs() includes
+  jobs/legacy/, so dry-run plans "create ag-legacy-noise-gate". The
+  operator did not execute it. Correct outcome: that job wants
+  deliver=telegram-ops-topic, which is owner-blocked (no Ops topic
+  id). It stays un-created until the topic exists. Revisit if the
+  reconciler ever executes plans unattended.
+- Receipts never recorded: deploy/receipts/ does not exist, so none
+  of the 4 live jobs got --record receipts. Backfilling now would
+  falsify deployed_at (--record stamps now()). Rule going forward:
+  record at creation time, in the same session as the create.
+- Accepted risk (no fix): validator has no name-charset rule, so a
+  hostile name: field could traverse write_receipt out of
+  deploy/receipts/. Threat requires a malicious committed YAML, at
+  which point easier paths exist. Revisit if YAML ever comes from
+  unreviewed sources.
