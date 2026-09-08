@@ -8,17 +8,21 @@ mode: agent
 job_type: constrained_terminal
 detection_slo: {p50_max: 2h, p95_max: 4h}
 rollback: cronjob_manage update job_id pause (list first)
+script: scripts/sensors/wi_change.py
+monitor: true
 prompt: |
-  Read-only WI contract sensor (Aftergraph org). HARD RULES: never
-  merge, push, deploy, approve, delete, write to any repo, or read
-  secrets. Terminal ONLY for these exact commands (GH =
-  scripts/gh-read.sh, GET-only, exits 3 otherwise). Fingerprint = the
-  two blob SHAs below, key wi|contract in scripts/event_store.py (own
-  state/ only). Never write files into the workdir except through
-  event_store state:
-  1. bash GH repos/Aftergraph/wi-backend/contents/contracts/work-intelligence-boundary/1.0.json --jq '{sha: .sha}'
-  2. bash GH repos/Aftergraph/wi-backend/contents/openapi.json --jq '{sha: .sha}'
-  Changed fingerprint = EMIT/UPDATE with typed evidence citing SHAs;
-  same fingerprint = output nothing (silence). One concise notify max.
+  Semantic WI contract investigator. The pre-check script output is a
+  CHANGE GATE only: changed blob SHAs are NOT a mismatch by themselves.
+  On change, use scripts/gh-read.sh (GET only) to inspect canonical
+  Aftergraph/wi-backend contracts/work-intelligence-boundary/1.0.json and
+  openapi.json, then compare them against the concrete consumer surface in
+  Aftergraph/wi-frontend src/api/contracts.ts and src/api/client.ts.
+  Check route/method availability, request/response field expectations,
+  status values and authority boundaries actually consumed by the web app.
+  Emit notify only for a proven incompatible consumer expectation or missing
+  canonical endpoint/field. Claim real findings atomically with
+  EventStore.claim_event(); same finding fingerprint is silent. Compatible
+  additive changes output nothing. Never merge, push, deploy, approve,
+  delete, write to any repo, or read secrets.
 continuity: true
 enabled_toolsets: [terminal]

@@ -1,0 +1,89 @@
+{
+  "schema_version": "cron-coverage-policy/1.0",
+  "topology_contract": {
+    "repo": "Aftergraph/after-graph-governance",
+    "path": "docs/platform-topology/1.0.json"
+  },
+  "principle": "Cron Fabric observes topology roles; it does not duplicate repository identity or grant authority.",
+  "concerns": {
+    "org_truth": {
+      "roles": [
+        "canonical-contracts",
+        "organization-community",
+        "scheduled-observation-fabric"
+      ],
+      "disposition": "notify_on_drift"
+    },
+    "authority": {
+      "roles": [
+        "normative-authority",
+        "runtime-enforcement"
+      ],
+      "disposition": "notify_on_semantic_drift"
+    },
+    "execution": {
+      "roles": [
+        "agent-runtime",
+        "durable-execution"
+      ],
+      "disposition": "notify_on_semantic_drift"
+    },
+    "assurance": {
+      "roles": [
+        "verified-code-review",
+        "continuity-containment-verification",
+        "temporary-verification-fixture"
+      ],
+      "disposition": "notify_on_verification_change"
+    },
+    "research": {
+      "roles": [
+        "research-assurance",
+        "continuity-contract"
+      ],
+      "disposition": "deep_audit_on_claim_change"
+    },
+    "models_capabilities": {
+      "roles": [
+        "capability-supply-chain",
+        "model-rnd-methodology",
+        "model-program",
+        "model-lifecycle-registry"
+      ],
+      "disposition": "deep_audit_on_relevant_change"
+    },
+    "experience": {
+      "roles": [
+        "primary-experience",
+        "work-inference",
+        "work-intelligence-experience"
+      ],
+      "disposition": "notify_on_contract_mismatch"
+    },
+    "public_foundation": {
+      "roles": [
+        "public-front-door",
+        "knowledge-plane",
+        "brand-design-system"
+      ],
+      "disposition": "notify_on_provenance_or_source_drift"
+    },
+    "legacy": {
+      "roles": [
+        "venture-os-consumer"
+      ],
+      "disposition": "noise_gate_only"
+    },
+    "incubation": {
+      "roles": [
+        "assurance-incubation"
+      ],
+      "disposition": "state_only_no_product_alerts"
+    }
+  },
+  "special_rules": {
+    "temporary-verification-fixture": "Track lifecycle and disappearance; never infer permanent platform ownership.",
+    "assurance-incubation": "Track topology/state only while INTERNAL HOLD; never emit public/product maturity alerts.",
+    "venture-os-consumer": "Legacy transition concern; no new canonical Aftergraph responsibility may be inferred from AVC activity."
+  }
+}

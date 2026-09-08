@@ -1,163 +1,207 @@
-# CHATGPT REVIEW SPEC - Aftergraph Cron Fabric v0.3
+# CHATGPT REVIEW SPEC - Aftergraph Cron Fabric v0.4
 
-> Reviewer (ChatGPT): v0.2 verdict CONDITIONAL addressed below. Reply
-> with: (1) verdict SHIP / CONDITIONAL / BLOCKED, (2) numbered findings
-> with file/section + concrete fix, (3) what you would still delete.
-> ASCII-only document.
+> Reviewer: reply with (1) verdict SHIP / CONDITIONAL / BLOCKED,
+> (2) numbered findings with file/section + concrete fix,
+> (3) what you would still delete. ASCII-only document.
 
-## 0. v0.2 findings -> fixes (all verified by tests, not prose)
+## 0. What changed from v0.3
 
-- #1 terminal bypasses wrapper -> read_only now DEFINED as "no external
-  target-system mutation"; own writes to state/, deploy/receipts/ and
-  local audit output explicitly allowed. New fields: mode (agent |
-  no_agent) + job_type (constrained_terminal). Validator REJECTS bare
-  [terminal] without job_type: constrained_terminal AND rejects any
-  such job whose prompt does not route through scripts/gh-read.sh.
-  Verified: 4 jobs failed validation until fixed (true positive run).
-- #2 process-local semaphore -> scripts/sensor_guard.py
-  CrossProcessSemaphore (SQLite leases, BEGIN IMMEDIATE, ttl 300s).
-  Contract: GH_CONCURRENCY_LIMIT MUST hold across all fabric processes.
-  Test: 3 holders + 1 contender in INDEPENDENT processes -> 3 admitted,
-  1 refused (would admit 4 if process-local). In suite: 19/19 -> 22/22.
-- #3 narrow SHA evidence -> require_typed_evidence: {type, ref,
-  observed_at, repo?, sha?}; types: commit | workflow_run | contract |
-  http_observation | repository_state | cron_run | synthetic_canary.
-  Commit findings still require exact sha. Tested (3 new checks).
-- #4 counts -> honest: 10 schedules / 7 concerns (8 core schedules,
-  1 canary, 1 legacy-local). No creative accounting.
-- #5 dedupe ownership -> event_store = authoritative event lifecycle +
-  delivery dedupe. monitor/wake = cost gate only. continuity = reasoning
-  context only, kept ONLY on deep audits (removed from claim-watch,
-  vault-watch, sentinel-release, legacy-noise-gate). Enforced by
-  validator (NO_CONTINUITY allowlist) + 3 new tests (watch rejected,
-  deep-audit allowed, allowlist pinned).
-- #6 expires lifecycle -> reconcile.py plan() takes expired set:
-  desired_state retired -> reconciler pauses/removes live job + emits
-  receipt. Adopted your simpler model: ag-sentinel-release is permanent
-  (pack-skew) with a temporary firetest-must-disappear RULE that closes
-  while the job continues. ag-firetest-rot.yaml DELETED.
-- #7 oracle -> shadow acceptance is 3-way: new fabric vs
-  acc-overnight-watch (comparator, not oracle) vs frozen direct source
-  observations. Oracle = fixtures + GitHub/CI/runtime evidence.
-- #8 prompt conditional -> validator: mode=agent REQUIRES prompt;
-  mode=no_agent FORBIDS prompt + REQUIRES script. ag-fabric-canary is
-  the first no_agent job (script: scripts/sensors/canary.py).
-- #9 latency thresholds -> every job carries detection_slo
-  {p50_max, p95_max} (2h jobs: 2h/4h; 6h: 6h/12h; daily: 24h/48h;
-  weekly: 7d/10d).
-- Deletes adopted: severity_ceiling gone (was v0.2); no buttons in core
-  (DECISION = Telegram + continuable session + textual action with
-  decision_id, e.g. DEC-20260908-0042 with inspect/defer/ack replies);
-  no whole-job expiry.
-- Open Q1 (cut order): no cuts; merge order if needed: vault pair,
-  then claim pair; governance stays.
-- Open Q2 (DECISION format): thread follow-up with decision_id, per
-  your recommendation.
-- Open Q3 (canary injector): new monthly no_agent job ag-fabric-canary,
-  external to tested jobs; inject -> one emission -> auto-resolve ->
-  exactly-one-Telegram + one RESOLVED; always
-  evidence.type=synthetic_canary. Implemented + passing.
-- Open Q4 (release-watch home): jobs/ag-sentinel-release.yaml in fabric;
-  contracts/sources.yaml points at canonical artifacts.
+- Event emission ownership is now atomic. `scripts/event_store.py`
+  exposes `claim_event()` using SQLite `BEGIN IMMEDIATE`; the claim and
+  EMIT/UPDATE/SILENCE decision happen in one transaction. The prior
+  `check() -> external emit -> record()` sequence is no longer the
+  canonical emission path.
+- Cross-process proof added: 10 independent processes claim the same
+  event/fingerprint; exactly 1 returns EMIT and 9 return SILENCE.
+- ACK is no longer conflated with recovery. `acknowledge()` leaves an
+  event OPEN; only sensor-observed recovery calls `resolve()` -> HEALTHY.
+- `ag-runtime-paritet` and `ag-wi-contract` are two-stage monitors:
+  deterministic scripts emit stable artifact fingerprints; Hermes
+  `monitor` wakes the agent only on change. Changed SHA is a cost gate,
+  never a finding by itself.
+- WI now watches both canonical backend artifacts and concrete frontend
+  consumer surfaces (`src/api/contracts.ts`, `src/api/client.ts`). Agent
+  analysis must prove semantic incompatibility before notifying.
+- `ag-governance-drift` checks live GitHub repository topology against
+  `organization.topology` before lower-level source-map drift.
+- `contracts/sources.yaml` adds `organization.topology` and concrete WI
+  mirror paths.
+- Validator now requires execution mode, validates supported schedule
+  grammar, verifies referenced scripts exist, and rejects duplicate
+  canonical job names.
+- Canary claim corrected: `ag-fabric-canary` is a local **state canary**.
+  It proves EventStore atomic claim/dedupe/recovery/re-armability. It does
+  NOT claim scheduler -> transport -> Telegram exactly-once delivery.
 
 ## 1. Decision
 
-10 schedules / 7 concerns (8 core + 1 canary + 1 legacy). Phase 1:
-ag-runtime-paritet, ag-wi-contract, ag-sentinel-release (temporary rule
-active) - paused + manual run + 7-day shadow vs comparator.
+Keep 10 schedules / 7 concerns: 8 core schedules, 1 state canary,
+1 legacy-local job. Do not add one job per repository.
 
-## 2-3. Ground truth, goals (unchanged from v0.2; read_only now enforced
-per above, not promised).
+Phase 1 concern set remains runtime parity, WI contract compatibility and
+Sentinel release integrity. v0.4 changes their correctness semantics, not
+schedule count or write authority.
 
-## 4. Architecture (updated)
+## 2. Current verified platform ground truth
 
-sensor (no-agent script or constrained_terminal agent, gh-read.sh
-GET-only, CrossProcessSemaphore(3)) -> event_store (authoritative,
-own SQLite) -> typed-evidence gate -> disposition
-(store/digest/notify/decision/incident) -> Telegram Ops topic.
-DECISION carries decision_id; replies are thread follow-ups
-(inspect/defer/ack DEC-ID).
+Current GitHub org reality observed 2026-09-08 contains 24 repositories.
+The canonical topology owner is `Aftergraph/after-graph-governance`.
+A topology reconciliation is tracked separately; Cron Fabric must consume
+that canonical topology once reconciled rather than hard-code a second org
+registry.
 
-## 5. Job catalog (final)
+Special classifications:
+- `autonomous-venture-company`: legacy/transition concern.
+- `sentinel-firetest`: temporary live-fire fixture.
+- `veranza`: private INTERNAL HOLD/incubation; topology observation must
+  not upgrade product/public maturity.
 
-Core (8 schedules): runtime-paritet, wi-contract, governance-drift,
-claim-watch + research-evidence (pair), vault-watch + vault-freshness
-(pair), sentinel-release (version-change watch + 1 temporary rule). Infra (1):
-ag-fabric-canary (monthly, no_agent). Legacy-local (1):
-jobs/legacy/ag-legacy-noise-gate.
+## 3. Goals / non-goals
 
-## 6. Interfaces (per jobs/*.yaml)
+Goals:
+1. At most one claimed alert per event fingerprint across independent
+   Fabric processes.
+2. Notify only on semantically actionable findings with typed evidence.
+3. Read-only external behavior by default and in v0.4.
+4. Cheap deterministic sensing before expensive agent reasoning.
+5. Every current repository is mapped to a concern or explicitly excluded.
 
-Required: name, schedule, deliver, severity (info|warning|critical),
-allowed_dispositions, read_only (= true, MUST), mode, rollback.
-Conditional: prompt (agent only), script (no_agent only).
-Optional: job_type (= constrained_terminal when terminal is listed),
-detection_slo, continuity (deep audits only), expires rule input.
-Forbidden: severity_ceiling, bare [terminal], secrets.
+Non-goals:
+- autonomous merge/deploy/secret rotation;
+- one schedule per repository;
+- AI-news digests;
+- claiming Telegram exactly-once delivery before delivery receipts exist.
 
-## 7. Safety (enforced, tested)
+## 4. Architecture
 
-gh-read.sh exit 3 pre-network (test); validator rejects undeclared
-terminal (4 true-positive failures fixed); CrossProcessSemaphore tested
-across processes; tokens read-only scoped at rollout (Phase 0 item).
+```text
+deterministic sensor / pre-check
+        |
+        v
+Hermes monitor change gate
+  unchanged -> skip agent
+  changed   -> wake investigator
+        |
+        v
+semantic comparison against declared source ownership
+        |
+        +-- no incompatibility -> silence
+        |
+        v
+EventStore.claim_event()  [atomic authoritative dedupe]
+        |
+        v
+typed evidence + disposition gate
+        |
+        v
+Telegram Ops delivery (when production delivery is enabled)
+```
 
-## 8. Testing
+Ownership:
+- EventStore = authoritative event lifecycle and dedupe.
+- Hermes monitor = cost/wake gate only.
+- continuity = reasoning context for deep audits only.
+- GitHub/Governance repositories = source truth; Fabric is an observer.
 
-validate.py (10 jobs) + test_behavior.py (41 checks) + canary.py
-self-test. CI runs all three. docs/CONFORMANCE.md maps every spec section
-to its mechanical proof command. Output schema: typed evidence on every
-notify+ (require_typed_evidence). scripts/verify_tick.py proves a
-scheduled (not manual) tick consumed its slot: next_run_at advanced,
-completed execution whose source is not manual_run (Hermes records
-scheduled runs as source=builtin) with matching scheduled_instant,
-output file present (exit 0 verified / 1 failed / 2 pending).
-retry_after_seconds() parses RFC 9110 Retry-After (delta-seconds and
-HTTP-date) for 429 handling; unparseable/expired -> None + backoff.
+## 5. Job catalog
 
-## 9. Rollout + success (updated)
+Core schedules:
+1. `ag-runtime-paritet` - 2h, deterministic artifact gate -> semantic investigator.
+2. `ag-wi-contract` - 2h, backend+frontend gate -> compatibility investigator.
+3. `ag-governance-drift` - 6h, topology first, then registered contract drift.
+4. `ag-claim-watch` - 6h cheap research change watch.
+5. `ag-research-evidence` - weekly deep evidence audit.
+6. `ag-vault-watch` - 6h cheap skills/model/docs change watch.
+7. `ag-vault-freshness` - weekly deep freshness audit.
+8. `ag-sentinel-release` - daily release integrity + temporary firetest rule.
 
-Phase 0: reconcile 14 live jobs, baseline, Ops topic, read-only token
-scoping. Phase 1: 3 jobs paused/manual/shadow (3-way acceptance).
-Success: duplicate rate 0; canary 100% (emission +
-RESOLVED, with immutable per-run receipts reconciled against canary
-state); evidence completeness 100%; per-job p50/p95 SLOs met (scheduled
-sources only); volume down vs frozen baseline. scripts/verify_slo.py
-makes these machine-checkable: computes duplicate rate and evidence
-completeness from events.sqlite, canary emission->RESOLVED from
-canary.sqlite, receipt validity + coverage from deploy/receipts,
-trailing-window volume vs state/baseline.json, and per-job p50/p95
-execution duration vs the detection_slo declared in each jobs/*.yaml.
-Fail-closed: unknown execution sources, SLO jobs with no live mapping,
-absent/unreadable state, malformed receipts, unresolved emissions
-without receipts, and missing/invalid baselines are ERRORS, never
-silent skips. Exit 0 all-pass / 1 violation / 2 insufficient data
-(SLOs pending live Phase-1 runs - explicitly not PASS).
-(Removed 2026-09-08: "false INCIDENT 0". No incident tier exists in
-the fabric - highest declared severity is warning/digest, dispositions
-are store/digest, and no INCIDENT designation exists in any job YAML,
-sensor, or table. The claim was unmeasurable. Reintroduce it only with
-a real incident tier plus a machine check.)
+Infrastructure:
+9. `ag-fabric-canary` - monthly local state canary, no-agent.
 
-## 10. Open questions - RESOLVED 2026-09-08
+Legacy-local:
+10. `jobs/legacy/ag-legacy-noise-gate` - AVC noise filtering.
 
-1. CrossProcessSemaphore-over-SQLite vs file-lock for NFS-style hosts.
-   RESOLVED: SQLite chosen. Evidence: tests/test_behavior.py xproc test
-   (3 holders + 1 contender) proves cross-process safety locally. File
-   locks (fcntl/flock) are Unix-only, not portable to Windows. The cron
-   scheduler runs on a single local host. SQLite WAL mode handles local
-   concurrency. Artifact: tests/xproc_worker.py, test xproc checks #31-32.
+## 6. Interfaces
 
-2. Should canary also run on-demand pre-deploy (in addition to monthly)?
-   RESOLVED: Yes. Implemented scripts/sensors/canary.py --on-demand flag
-   (non-destructive probe: check -> OK/SILENCE -> exit 0). Pre-deploy
-   check verifies event_store pipeline is alive without mutating state.
-   Deploy pipeline can invoke: python3 scripts/sensors/canary.py --on-demand.
+Required per job:
+- `name`
+- `schedule`
+- `deliver`
+- `severity`
+- `allowed_dispositions`
+- `read_only: true`
+- `mode`
+- `rollback`
 
-3. DECISION ack semantics: does ack freeze the event (no re-emit on
-   same fingerprint)?
-   RESOLVED: Ack does NOT freeze permanently. resolve() transitions
-   event state from OPEN to HEALTHY (event_store.py:70-74). Next
-   check() on a HEALTHY key returns EMIT (line 49-50). This is by
-   design: ack means "I am aware", but a new occurrence on the same
-   subject re-arms the event. Behavior test "resolve closes" + canary
-   lifecycle (emit -> resolve -> emit again) confirm this.
+Conditional:
+- agent mode requires `prompt`;
+- no_agent requires `script` and forbids prompt;
+- terminal jobs require `job_type: constrained_terminal` and route GitHub
+  reads through `scripts/gh-read.sh`.
+
+Agent jobs may also use `script` + `monitor` as a deterministic wake gate.
+A script fingerprint change is not permission to emit a finding.
+
+## 7. Safety
+
+- `scripts/gh-read.sh` rejects write methods before network access.
+- no Fabric job may merge, push, deploy, approve or rotate secrets.
+- local writes are limited to Fabric-owned state/receipts/audit surfaces.
+- GitHub concurrency is bounded cross-process with SQLite leases.
+- sensor 429/5xx/timeout is sensor degradation, not target-repo incident.
+- no public/product maturity is inferred from repository existence.
+
+## 8. Testing and evidence
+
+CI runs:
+
+```bash
+python3 scripts/validate.py
+python3 tests/test_behavior.py
+python3 scripts/sensors/canary.py
+```
+
+Verified on PR #3 merge proof:
+- `VALIDATE-OK: 10 jobs`
+- `BEHAVIOR-OK: 46 checks`
+- cross-process semaphore: 3 admitted / 1 refused
+- same-event cross-process claim: exactly 1 EMIT / 9 SILENCE
+- `STATE-CANARY-OK`
+
+`scripts/verify_tick.py` proves scheduled tick consumption.
+`scripts/verify_slo.py` checks metrics available from persistent Fabric and
+Hermes execution state. It must not claim external Telegram delivery proof.
+
+## 9. Rollout and success gates
+
+Before Phase 2 expansion:
+- canonical topology reflects current org reality;
+- atomic event claim remains green under cross-process tests;
+- runtime/WI notifications are semantic findings, not SHA-change alerts;
+- state-canary and future delivery-canary claims stay separate;
+- every current repo maps to a concern or explicit exclusion;
+- no new write authority is introduced.
+
+Machine-checkable locally:
+- duplicate event claim regression tests;
+- evidence completeness;
+- state-canary health;
+- p50/p95 job execution SLOs where enough live samples exist.
+
+Requires external delivery/baseline evidence, therefore NOT inferred from
+EventStore alone:
+- Telegram delivery exactly-once;
+- false INCIDENT rate;
+- total notification-volume reduction versus frozen baseline.
+
+## 10. Remaining open gates
+
+1. Merge/reconcile the current 24-repo canonical topology in Governance,
+   then regenerate exact-head org-state using the existing generator.
+2. Shadow-run the v0.4 semantic runtime/WI investigators against direct
+   source observations before production Telegram promotion.
+3. Add a delivery receipt surface before introducing a true end-to-end
+   Telegram delivery canary. Do not fake this with local state.
+4. Keep `sentinel-firetest` temporary and remove its rule after the fixture
+   is actually deleted.
+5. Keep `veranza` topology-only while it remains INTERNAL HOLD.

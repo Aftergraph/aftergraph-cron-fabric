@@ -29,37 +29,43 @@ def fresh_store():
     return EventStore(f"{tmp}/events.sqlite")
 
 
-# 1. same failure x3 -> exactly 1 alert
+# 1. same failure x3 -> exactly 1 claimed alert
 s = fresh_store()
 key = "ag-ci|contract|fail"
-check("first failure EMITs", s.check(key, "sha:aaa") == "EMIT")
-s.record(key, "sha:aaa")
-check("repeat SILENCEs", s.check(key, "sha:aaa") == "SILENCE")
-check("third SILENCEs", s.check(key, "sha:aaa") == "SILENCE")
+check("first failure EMITs", s.claim_event(key, "sha:aaa") == "EMIT")
+check("repeat SILENCEs", s.claim_event(key, "sha:aaa") == "SILENCE")
+check("third SILENCEs", s.claim_event(key, "sha:aaa") == "SILENCE")
 
-# 2. failure resolved -> state closes (no alert on healthy)
+# 2. observed recovery closes the event
 s.resolve(key)
 row = s.db.execute("SELECT state FROM events WHERE event_key=?",
                    (key,)).fetchone()
-check("resolve closes", row[0] == "HEALTHY")
+check("observed resolve closes", row[0] == "HEALTHY")
 
-# 3. same failure returns -> new alert
-check("return EMITs again", s.check(key, "sha:aaa") == "EMIT")
+# 3. same failure after observed recovery -> new alert
+check("return EMITs again", s.claim_event(key, "sha:aaa") == "EMIT")
 
-# 4. same condition / new SHA -> UPDATE, not fresh EMIT
+# 4. human ACK is not recovery: keep OPEN and silence same fingerprint
+check("acknowledge records awareness", s.acknowledge(key) is True)
+row = s.db.execute("SELECT state FROM events WHERE event_key=?",
+                   (key,)).fetchone()
+check("acknowledge keeps event OPEN", row[0] == "OPEN")
+check("acknowledged unresolved fingerprint stays silent",
+      s.claim_event(key, "sha:aaa") == "SILENCE")
+
+# 5. same condition / new SHA -> UPDATE, not fresh EMIT
 s2 = fresh_store()
-assert s2.check(key, "sha:aaa") == "EMIT"
-s2.record(key, "sha:aaa")
-check("new SHA UPDATEs", s2.check(key, "sha:bbb") == "UPDATE")
+assert s2.claim_event(key, "sha:aaa") == "EMIT"
+check("new SHA UPDATEs", s2.claim_event(key, "sha:bbb") == "UPDATE")
 
-# 5. GitHub 429 -> sensor degradation, never repo incident
+# 6. GitHub 429 -> sensor degradation, never repo incident
 try:
     classify_http(429)
     check("429 degrades", False)
 except SensorDegraded:
     check("429 degrades", True)
 
-# 6. GitHub 500 / timeout -> sensor degraded
+# 7. GitHub 500 / timeout -> sensor degraded
 for bad in (500, 503):
     try:
         classify_http(bad)
@@ -73,7 +79,7 @@ except SensorDegraded:
     check("timeout degrades", True)
 check("200 is REPO signal", classify_http(200) == "REPO")
 
-# 7. attempted write -> blocked (gh-read.sh refuses before network)
+# 8. attempted write -> blocked (gh-read.sh refuses before network)
 r = subprocess.run(["bash", "scripts/gh-read.sh",
                     "-X", "POST", "repos/x/y"],
                    capture_output=True, text=True, cwd=str(ROOT))
@@ -82,7 +88,7 @@ r2 = subprocess.run(["bash", "scripts/gh-read.sh",
                     capture_output=True, text=True, cwd=str(ROOT))
 check("POST blocked pre-network", r.returncode == 3 and r2.returncode == 3)
 
-# 8. missing evidence SHA -> cannot emit ACTIONABLE+
+# 9. missing evidence SHA -> cannot emit ACTIONABLE+
 try:
     require_evidence("")
     check("empty evidence refused", False)
@@ -106,7 +112,7 @@ check("commit with sha passes",
                               "observed_at": "t",
                               "sha": "f4e98ac"}) is True)
 
-# 9. script crash -> monitor failure visible (nonzero, stderr)
+# 10. script crash -> monitor failure visible (nonzero, stderr)
 r = subprocess.run(["bash", "-c", "echo boom >&2; exit 1"],
                    capture_output=True, text=True)
 check("crash visible", r.returncode != 0 and "boom" in r.stderr)
@@ -115,7 +121,7 @@ check("crash visible", r.returncode != 0 and "boom" in r.stderr)
 b0, b3 = backoff(0, base=5.0, cap=120.0), backoff(3, base=5.0, cap=120.0)
 check("backoff grows", 5.0 <= b0 <= 6.0 and b3 > b0)
 
-# 10. continuity forbidden on watch jobs (spec #5), allowed on deep audits
+# 11. continuity forbidden on watch jobs (spec #5), allowed on deep audits
 from validate import job_errors, NO_CONTINUITY
 _tmp = tempfile.mkdtemp()
 _watch = Path(_tmp, "ag-claim-watch.yaml"); _watch.write_text("name: ag-claim-watch\n", encoding="utf-8")
@@ -133,7 +139,7 @@ check("continuity allowlist matches spec #5",
       NO_CONTINUITY == {"ag-claim-watch", "ag-vault-watch",
                         "ag-sentinel-release", "ag-legacy-noise-gate"})
 
-# 10b. retry_after_seconds: RFC 9110 delta-seconds + HTTP-date + garbage
+# 11b. retry_after_seconds: RFC 9110 delta-seconds + HTTP-date + garbage
 check("retry-after delta-seconds parsed",
       abs(retry_after_seconds("120") - 120) < 1)
 check("retry-after HTTP-date parsed",
@@ -147,7 +153,7 @@ check("retry-after garbage -> None",
 check("retry-after past date -> None",
       retry_after_seconds("Wed, 21 Oct 2015 07:28:00 GMT") is None)
 
-# 10c. job catalog pinned: 8 core + 1 canary + 1 legacy = 10 total
+# 11c. job catalog pinned: 8 core + 1 canary + 1 legacy = 10 total
 # (spec #4 counts, §1, §5). Prose drift caught by this check.
 # NOTE: no `import yaml` here - CI runners do not ship PyYAML.
 import glob as _glob
@@ -175,7 +181,7 @@ check("catalog: 1 legacy-local",
 check("catalog: 10 jobs total",
       len(_core_files) + len(_legacy_files) == 10)
 
-# 11. verify_tick.py: suppressed slot must FAIL, healthy slot must PASS
+# 12. verify_tick.py: suppressed slot must FAIL, healthy slot must PASS
 import sqlite3 as _sql, json as _json
 import subprocess as _sp
 from datetime import datetime as _datetime, timezone as _timezone
@@ -260,6 +266,20 @@ for _p in _xprocs:
 _got = sorted(Path(_out).read_text(encoding="utf-8").split())
 check("xproc: 3 holders admitted", _got.count("acquired") == 3)
 check("xproc: contender refused", _got.count("refused") == 1)
+
+# EventStore claim_event must also be cross-process exactly-once.
+_ev_tmp = tempfile.mkdtemp()
+_ev_db = str(Path(_ev_tmp, "events.sqlite"))
+_ev_out = Path(_ev_tmp, "results")
+_ev_worker = str(ROOT / "tests" / "xproc_event_worker.py")
+_ev_procs = [subprocess.Popen([sys.executable, _ev_worker, _ev_db, str(_ev_out)])
+             for _ in range(10)]
+for _p in _ev_procs:
+    _p.wait(timeout=30)
+_ev_actions = sorted(p.read_text(encoding="utf-8") for p in _ev_out.glob("*.txt"))
+check("event claim xproc: exactly one EMIT", _ev_actions.count("EMIT") == 1)
+check("event claim xproc: remaining nine SILENCE",
+      _ev_actions.count("SILENCE") == 9 and len(_ev_actions) == 10)
 
 # reconciler --record writes a receipt with the live config hash
 import json as _json
