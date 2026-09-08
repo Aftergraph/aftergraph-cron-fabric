@@ -116,6 +116,24 @@ with a deployment receipt.
   clear) dispatched immediately - 09:12 direct run, status running.
   Verify output after it lands; then decide next scheduled tick
   strategy (job stays enabled; only ONE direct fire per tick-slot).
+  MANUAL-FIRE RE-PROOF 09:16:18 VERIFIED: execution e8122786
+  (direct, completed 09:16:18, no error) produced cron output
+  2026-09-08_09-16-18.md with REAL report: rulepack v1.7.0 blob
+  eeed0143791c58fc94bcc576e40e092ada8a1322d, firetest PRESENT,
+  sentinel|release EMIT recorded in state/events.sqlite (OPEN,
+  evidence rulepack_sha=...;version=1.7.0;firetest=PRESENT),
+  read-only throughout (gh-read.sh GET-only). Receipt recorded:
+  deploy/receipts/ag-sentinel-release.json {job_id 50159b84a34f,
+  config_hash 2a76d1058437, deployed_at 09:20}. Old 19-byte stub
+  receipts/sentinel.json removed (superseded).
+  FIX 09:20: the 09:12 direct run had inherited scheduled_instant=
+  2026-09-09T07:00:00+00:00 (= tomorrow 09:00) - it would have
+  suppressed the NEXT tick the same way. Cleared scheduled_instant
+  to NULL on e8122786 AND on canary's direct run 4792db4d
+  (Oct-1 slot) so scheduled ticks can fire. Rule going forward:
+  after any direct run, verify it does not carry a future
+  scheduled_instant; if it does, clear it (scheduled ticks are the
+  proof vehicle, direct runs must not consume them).
   LIVE-PROMPT FIX 08:08: live job 50159b84a34f was created 01:24:47,
   four minutes BEFORE the prompt tightening commit 65ea0ea
   (01:29:01), and later manual runs never dispatched - so the live
