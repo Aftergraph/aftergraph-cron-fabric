@@ -14,6 +14,10 @@ for arg in "$@"; do
       echo "gh-read: write method refused: $arg" >&2
       exit 3
       ;;
+    -F|--field|-f|--raw-field|--input)
+      echo "gh-read: body-field flags forbidden (GET only): $arg" >&2
+      exit 3
+      ;;
   esac
 done
 # Reject --method values and -F/--field writes smuggled as POST inference.

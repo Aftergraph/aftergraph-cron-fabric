@@ -75,7 +75,10 @@ check("200 is REPO signal", classify_http(200) == "REPO")
 r = subprocess.run(["bash", "scripts/gh-read.sh",
                     "-X", "POST", "repos/x/y"],
                    capture_output=True, text=True, cwd=str(ROOT))
-check("POST blocked pre-network", r.returncode == 3)
+r2 = subprocess.run(["bash", "scripts/gh-read.sh",
+                     "repos/x/y", "-F", "a=b"],
+                    capture_output=True, text=True, cwd=str(ROOT))
+check("POST blocked pre-network", r.returncode == 3 and r2.returncode == 3)
 
 # 8. missing evidence SHA -> cannot emit ACTIONABLE+
 try:
