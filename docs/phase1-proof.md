@@ -9,6 +9,25 @@ Frozen: 2026-09-08 ~02:15 CEST. append-only; new runs add lines, never rewrite o
 - ag-wi-contract f33d3564cbb0: GREEN re-proof (deleg_313eb382, 141s; first run deleg_7b649874 944s, weak). Baseline OPEN.
 - ag-sentinel-release 50159b84a34f: PENDING. First run deleg_9482cb79 weak (75s, local recon only). Manual re-proof fired ~01:30 never landed (stuck fire flag, pause+resume does not clear it). Rerouted: job left ENABLED, 09:00 scheduled tick is the re-proof vehicle. Re-pause after.
 
+## POST-FREEZE APPENDIX (append-only from 2026-09-08 09:21)
+
+- ag-sentinel-release 50159b84a34f: VERIFIED 2026-09-08 09:16:18 (manual fire
+  09:12, execution e8122786 completed, output 2026-09-08_09-16-18.md).
+  EMIT with cites: rulepack v1.7.0 blob eed0143791c58fc94bcc576e40e092ada8a1322d;
+  sentinel-firetest PRESENT (temporary rule active); sentinel|release recorded
+  OPEN in state/events.sqlite (rulepack_sha=eed014...;version=1.7.0;firetest=PRESENT).
+  Read-only throughout (gh-read.sh GET-only). Receipt recorded
+  deploy/receipts/ag-sentinel-release.json (config_hash 2a76d1058437).
+- 09:00 scheduled tick did NOT dispatch (root cause falsified, source-verified:
+  cron/jobs.py L2928 completed_occurrence; the 01:25 direct run's
+  scheduled_instant=09:00 consumed the slot -> next_run advanced to 09-09).
+  Fix: cleared inherited scheduled_instant on the 09:12 run (would have
+  suppressed tomorrow's tick) and on canary's direct run (Oct-1 slot).
+  Tomorrow 09:00 tick should now fire; verify.
+- PHASE 1 LIVE END-TO-END: all 4 jobs now have verified live runs
+  (canary + 3 sensors). Standing unchanged: deliver=local, terminal-only,
+  job remains ENABLED (next scheduled tick 2026-09-09T09:00+02).
+
 ## Fingerprints on disk (state/events.sqlite, verified 02:08)
 
 - wi|contract OPEN fp 80e462a53a58100c evidence boundary=65803732ae866b6eb4f956624cf40e18fbec5a5d;openapi=f5ca4c818e76ca8c7d6cf347c4804d47cf657b37

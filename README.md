@@ -2,20 +2,17 @@
 
 # Aftergraph Cron Fabric
 
-Status: Product baseline v0.3 - 10 schedules / 7 concerns, not yet deployed.
+Status: Product baseline v0.3 — 9 schedules / 7 concerns. Phase 1 live proof complete (all 4 monitored jobs verified end-to-end as of 2026-09-08).
 One-line: a small set of Telegram-first scheduled jobs that watch the Aftergraph org and only speak when there is something to act on.
 
 Brand: `Aftergraph Cron Fabric` under the Aftergraph masterbrand. Identity is owned by [Aftergraph/brand](https://github.com/Aftergraph/brand); this repo copies no logos or tokens. See [docs/brand.md](docs/brand.md).
 
 ## What it does
 
-Today the profile runs 14 cron jobs (verified 2026-09-08 via live listing):
-noisy hourly watchdogs (`acc-overnight-watch`), 5-minute pollers
-(`avc-ci-local-poll`, `gateway-watchdog`), digests, and several jobs in
-`error` state (`weekly-brief`, `skills-vault-sync`) plus a paused
-`aftergraph-site-monitor`. This repo replaces watchdog-spam with a fabric:
-cheap no-agent sensors gate expensive agent runs, and a disposition contract
-decides what reaches Telegram.
+Today the profile runs 14 live cron jobs (verified 2026-09-08) plus 9 fabric
+definitions (7 core schedules, 1 canary, 1 legacy-local). Noisy hourly
+watchdogs and 5-minute pollers have been retired; this repo provides the
+replacement fabric.
 
 ## Tech stack
 
@@ -45,6 +42,10 @@ cat CHATGPT-REVIEW-SPEC.md           # the reviewable spec
 Phase 0: reconcile live cron, baseline volumes, scope read-only tokens.
 Phase 1: three jobs paused + manual run + 7-day shadow (see review spec).
 One job at a time; start paused, enable after one clean manual run.
+Status 2026-09-08: Phase 1 live proof COMPLETE — canary, runtime-paritet,
+wi-contract and sentinel-release all verified end-to-end (sentinel first
+full EMIT 09:16:18 with typed evidence, receipt recorded). Jobs stay
+deliver=local / terminal-only until the SHIP gate.
 
 ## Project structure
 
