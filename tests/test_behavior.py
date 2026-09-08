@@ -326,7 +326,56 @@ _r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
               "--events-db", str(_evdb), "--canary-db", str(_cadb),
               "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
              capture_output=True, text=True, cwd=str(ROOT))
-check("slo verify FAILs on missing typed evidence",
+check("slo verify FAILs on missing evidence",
       _r.returncode == 1 and "evidence" in _r.stdout)
+
+# SLO met: ag-runtime-paritet with 10 fast runs (60s each, SLO is p50_max: 2h)
+# Job dir gets one YAML with detection_slo; executions.db has 10 scheduler runs.
+_slo_jobs = _slo_dir / "jobs"
+_slo_jobs.mkdir(exist_ok=True)
+import shutil as _shutil
+_shutil.copy(str(ROOT / "jobs" / "ag-runtime-paritet.yaml"),
+             str(_slo_jobs / "ag-runtime-paritet.yaml"))
+_jobjson.write_text('[{"name":"ag-runtime-paritet","id":"r1"}]', encoding="utf-8")
+_mk_evdb(_evdb, [("k1", "fp1", "OPEN", 1, 1, "type=commit;sha=abc")])
+_mk_evdb(_cadb, [("k1", "fp1", "RESOLVED", 1, 2, "type=synthetic_canary")])
+con = _sql.connect(str(_ecdb))
+con.execute("DROP TABLE IF EXISTS executions")
+con.execute("CREATE TABLE executions (id TEXT, job_id TEXT, source TEXT, "
+            "status TEXT, scheduled_instant TEXT, started_at TEXT, "
+            "finished_at TEXT)")
+from datetime import timedelta as _td
+_base = _datetime(2026, 9, 1, tzinfo=_timezone.utc)
+for i in range(10):
+    s = _base + _td(hours=i)
+    f = s + _td(seconds=60)
+    con.execute("INSERT INTO executions VALUES (?, 'r1', 'scheduler', "
+                "'completed', '', ?, ?)", (f"e{i}", s.isoformat(), f.isoformat()))
+con.commit(); con.close()
+_r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
+              "--jobs-dir", str(_slo_jobs),
+              "--events-db", str(_evdb), "--canary-db", str(_cadb),
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+             capture_output=True, text=True, cwd=str(ROOT))
+check("slo verify SLO-VERIFIED when runs meet threshold",
+      _r.returncode == 0 and "SLO-VERIFIED" in _r.stdout)
+
+# SLO breached: 10 slow runs (10800s = 3h, p50_max: 2h)
+con = _sql.connect(str(_ecdb))
+for row in con.execute("SELECT id FROM executions").fetchall():
+    con.execute("DELETE FROM executions WHERE id = ?", row)
+for i in range(10):
+    s = _base + _td(hours=i)
+    f = s + _td(seconds=10800)
+    con.execute("INSERT INTO executions VALUES (?, 'r1', 'scheduler', "
+                "'completed', '', ?, ?)", (f"e{i}", s.isoformat(), f.isoformat()))
+con.commit(); con.close()
+_r = _sp.run([sys.executable, str(ROOT / "scripts" / "verify_slo.py"),
+              "--jobs-dir", str(_slo_jobs),
+              "--events-db", str(_evdb), "--canary-db", str(_cadb),
+              "--executions-db", str(_ecdb), "--jobs-json", str(_jobjson)],
+             capture_output=True, text=True, cwd=str(ROOT))
+check("slo verify VIOLATION when runs exceed threshold",
+      _r.returncode == 1 and "VIOLATION" in _r.stdout)
 
 print(f"\nBEHAVIOR-OK: {passed} checks")
