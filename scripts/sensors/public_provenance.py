@@ -20,18 +20,13 @@ import time
 from pathlib import Path
 
 
-# (repo, surface_path, target_contract_id_in_sources.yaml)
-# Each surface has a canonical target whose current SHA is fetched via
-# gh api and compared to the surface's recorded pin. Update when the
-# public surface changes.
-PROVENANCE_PAIRS = [
-    ("Aftergraph/docs", "developers/api/index.md",
-     "wi.observation"),
-    ("Aftergraph/aftergraph.org", "src/content/products/wie.md",
-     "wi.observation"),
-    ("Aftergraph/brand", "docs/canonical/masterbrand.md",
-     "brand.identity"),
-]
+# Real provenance surface: Aftergraph/docs pins every canonical repo's
+# HEAD in src/data/sources.ts (one commitSha per repo, freshness-verified
+# by the docs pipeline). The sensor reads that manifest and compares
+# each recorded pin against the pinned repo's LIVE HEAD.
+# Surface: (repo, path) = (Aftergraph/docs, src/data/sources.ts)
+# Canonical targets: every repository listed in the manifest.
+PROVENANCE_SURFACE = ("Aftergraph/docs", "src/data/sources.ts")
 
 # Offline fixture support. Schema:
 #   {
@@ -109,34 +104,35 @@ def _canonical_head_sha(repo, paths):
     return head.get("sha")
 
 
-def _surface_pin_sha(repo, surface_path):
-    """Find any 40-char hex SHA string in the surface file. Real
-    provenance pins are SHA-256 (64-char) or git SHA1 (40-char); we
-    accept either to avoid coupling to one digest length."""
+def _surface_pins(repo, surface_path):
+    """Return {pinned_repo: pin_sha} parsed from the surface manifest.
+
+    The docs sources.ts manifest has one line per canonical repo with a
+    40-hex commitSha. We extract every (repository, commitSha) pair.
+    """
     fix = _load_offline_fixture()
     if fix is not None:
-        key = f"{repo}:{surface_path}"
-        return fix.get("surface_pin", {}).get(key)
+        return fix.get("surface_pin", {})
     raw = _gh_api(repo, f"contents/{surface_path}")
     if not isinstance(raw, dict):
-        return None
+        return {}
     if raw.get("encoding") != "base64":
-        return None
+        return {}
     import base64
     try:
         text = base64.b64decode(raw["content"]).decode("utf-8",
                                                        errors="replace")
     except Exception:
-        return None
-    # SHA-1 (40 hex) — typical git pin.
-    m = re.search(r"\b([0-9a-f]{40})\b", text)
-    if m:
-        return m.group(1)
-    # SHA-256 prefix (64 hex) — full digest, but only first 40 anchored.
-    m = re.search(r"\b([0-9a-f]{64})\b", text)
-    if m:
-        return m.group(1)[:40]
-    return None
+        return {}
+    pins = {}
+    for line in text.splitlines():
+        # Manifest lines are compact objects: both fields on one line.
+        m = re.search(
+            r"repository:\s*['\"]([^'\"]+)['\"].*?"
+            r"commitSha:\s*['\"]([0-9a-f]{40})['\"]", line)
+        if m:
+            pins[m.group(1)] = m.group(2)
+    return pins
 
 
 def main():
@@ -149,33 +145,49 @@ def main():
     store = EventStore(store_path)
 
     total_emitted = 0
-    for repo, surface_path, target in PROVENANCE_PAIRS:
-        pin = _surface_pin_sha(repo, surface_path)
-        canonical = _canonical_head_sha(repo, None)
-        if not pin or not canonical:
-            print(f"PUBLIC-PROVENANCE-SKIP: {repo}:{surface_path} "
-                  f"pin={bool(pin)} canonical={bool(canonical)}")
+    total_checked = 0
+    total_skipped = 0
+    surface_repo, surface_path = PROVENANCE_SURFACE
+    pins = _surface_pins(surface_repo, surface_path)
+    if not pins:
+        # Fail-closed: unreadable surface = SENSOR-DEGRADED (SKIP),
+        # never a fabricated CLEAN or EMIT.
+        print(f"PUBLIC-PROVENANCE-DEGRADED: surface unreadable: "
+              f"{surface_repo}:{surface_path}")
+        print("PUBLIC-PROVENANCE-OK: emitted=0 checked=0 skipped=0 "
+              "degraded=surface")
+        sys.exit(0)
+
+    for pinned_repo, pin in sorted(pins.items()):
+        canonical = _canonical_head_sha(pinned_repo, None)
+        if not canonical:
+            total_skipped += 1
+            print(f"PUBLIC-PROVENANCE-SKIP: {pinned_repo} "
+                  f"canonical unreadable (degraded, not fabricated)")
             continue
+        total_checked += 1
         # Compare on the first 8 chars — full-length SHA1 comparison is
         # too strict for HEAD-vs-pin where pin may have been truncated
         # in the public surface to keep file size sane.
         if pin[:8] == canonical[:8]:
             continue
         evidence = {
-            "surface": f"{repo}/{surface_path}",
-            "target_contract": target,
+            "surface": f"{surface_repo}/{surface_path}",
+            "target_contract": pinned_repo,
             "pin_sha": pin,
             "canonical_sha": canonical,
             "classification": "STALE_PIN",
         }
         fp = json.dumps(evidence, sort_keys=True, separators=(",", ":"))
-        key = f"public-provenance-drift|{repo}|{target}|{canonical[:12]}"
+        key = (f"public-provenance-drift|{surface_repo}|"
+               f"{pinned_repo}|{canonical[:12]}")
         action = store.claim_event(key, fp)
         total_emitted += 1 if action == "EMIT" else 0
-        print(f"PUBLIC-PROVENANCE-{action}: {repo} pin={pin[:8]} "
-              f"canonical={canonical[:8]}")
+        print(f"PUBLIC-PROVENANCE-{action}: {pinned_repo} "
+              f"pin={pin[:8]} canonical={canonical[:8]}")
 
-    print(f"PUBLIC-PROVENANCE-OK: emitted={total_emitted}")
+    print(f"PUBLIC-PROVENANCE-OK: emitted={total_emitted} "
+          f"checked={total_checked} skipped={total_skipped}")
     sys.exit(0)
 
 
