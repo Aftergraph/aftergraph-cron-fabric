@@ -21,7 +21,7 @@ mechanically with one command.
 | 5 | Audit log | event_store.py: log_audit + test_behavior: "record writes receipt" | python3 tests/test_behavior.py |
 | 7 | CI runs validate + tests + canary | CI workflow (.github/workflows/ci.yml) | gh api .../check-runs |
 | 8 | validate.py validates 16 YAML files | validate.py output | python3 scripts/validate.py jobs |
-| 8 | test_behavior.py runs 111 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
+| 8 | test_behavior.py runs 115 behavioral checks | test_behavior output | python3 tests/test_behavior.py |
 | 8 | Canary self-test | canary.py exit 0 | python3 scripts/sensors/canary.py |
 | 8 | Canary --on-demand pre-deploy probe | canary --on-demand: EMIT -> OK (non-destructive) | python3 scripts/sensors/canary.py --on-demand |
 | 9 | Duplicate rate measurable | verify_slo.py check_duplicate_rate | python3 scripts/verify_slo.py --jobs-dir jobs --events-db state/events.sqlite --canary-db state/canary.sqlite --executions-db EXEC_DB --jobs-json JOBS_JSON |
@@ -54,7 +54,7 @@ Run the following to verify all spec claims in one pass:
 
 ```
 python3 scripts/validate.py jobs       # 16 jobs
-python3 tests/test_behavior.py         # 111 behavioral checks
+python3 tests/test_behavior.py         # 115 behavioral checks
 python3 scripts/sensors/canary.py      # canary self-test
 ```
 
