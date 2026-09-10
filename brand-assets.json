@@ -1,0 +1,30 @@
+{
+ "assets": {
+  "architecture": "optional",
+  "icon": "optional",
+  "identity": "inherit",
+  "motion": "not-applicable",
+  "press": "not-applicable",
+  "screenshots": "not-applicable",
+  "social": "not-applicable"
+ },
+ "brand": {
+  "canonical_package": "@aftergraph/brand",
+  "class": "technology",
+  "parent": "aftergraph",
+  "version": "1.1.0"
+ },
+ "notes": "Cron fabric: no product logo claimed.",
+ "provenance": {
+  "generated_from_brand": "Aftergraph/brand@v1.1.0",
+  "source_commit": "8a1f878004ec69303d0bfdc8f65f2e5e0045cb09"
+ },
+ "repo": "Aftergraph/aftergraph-cron-fabric",
+ "schema_version": 2,
+ "surfaces": {
+  "docs": true,
+  "github_social": false,
+  "product_ui": false,
+  "readme": true
+ }
+}
