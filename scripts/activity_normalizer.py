@@ -511,13 +511,24 @@ def reconcile_topology(
       unknown_live: live repos not in topology (warn, do not add)
       missing_expected: topology repos not present in live (observe)
     """
-    live_set = {r["full_name"] if isinstance(r, dict) else r for r in live_repos}
-    topo_names = {r["name"] if isinstance(r, dict) else r for r in topology_repos}
+    def _strip_org(full_name: str) -> str:
+        return full_name.rsplit("/", 1)[-1] if "/" in full_name else full_name
 
-    unknown_live = [r for r in live_set if r not in topo_names]
-    missing_expected = [r for r in topo_names if r not in live_set]
+    live_names = {_strip_org(r["full_name"] if isinstance(r, dict) else r) for r in live_repos}
+    topo_names = {
+        _strip_org(r["name"] if isinstance(r, dict) else r) for r in topology_repos
+    }
+
+    unknown_list = [r for r in live_repos
+                    if _strip_org(r["full_name"] if isinstance(r, dict) else r) not in topo_names]
+    missing_list = [r for r in topology_repos
+                    if _strip_org(r["name"] if isinstance(r, dict) else r) not in live_names]
 
     return {
-        "unknown_live": sorted(unknown_live),
-        "missing_expected": sorted(missing_expected),
+        "unknown_live": sorted([{
+            "name": _strip_org(r["full_name"] if isinstance(r, dict) else r)
+        } for r in unknown_list], key=lambda x: x["name"]),
+        "missing_expected": sorted([{
+            "name": _strip_org(r["name"] if isinstance(r, dict) else r)
+        } for r in missing_list], key=lambda x: x["name"]),
     }

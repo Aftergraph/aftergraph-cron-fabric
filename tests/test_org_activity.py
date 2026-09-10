@@ -74,17 +74,20 @@ def test_repo_discovery_mixed_inventory():
 
 def test_unknown_repo_warning():
     """Unknown live repo results in a warning, not silent topology addition."""
-    live = ["Aftergraph/unknown-repo"]
+    live = [{"full_name": "Aftergraph/unknown-repo", "name": "unknown-repo"}]
     topo = [
-        {"name": "Aftergraph/aftergraph-cron-fabric"},
-        {"name": "Aftergraph/trust-gateway"},
+        {"name": "aftergraph-cron-fabric"},
+        {"name": "trust-gateway"},
     ]
     recon = reconcile_topology(live, topo)
-    check("unknown live repo detected", "Aftergraph/unknown-repo" in recon["unknown_live"])
-    check("known repo not flagged unknown", "Aftergraph/aftergraph-cron-fabric" not in recon["unknown_live"])
-    check("missing expected repo detected", "Aftergraph/missing-repo" in reconcile_topology(
-        ["Aftergraph/aftergraph-cron-fabric"], [{"name": "Aftergraph/missing-repo"}]
-    )["missing_expected"])
+    check("unknown live repo detected", "unknown-repo" in [r["name"] for r in recon["unknown_live"]])
+    check("known repo not flagged unknown", "aftergraph-cron-fabric" not in [r["name"] for r in recon["unknown_live"]])
+    check("missing expected repo detected", "missing-repo" in [
+        r["name"] for r in reconcile_topology(
+            [{"full_name": "Aftergraph/aftergraph-cron-fabric", "name": "aftergraph-cron-fabric"}],
+            [{"name": "missing-repo"}]
+        )["missing_expected"]
+    ])
 
 
 def test_repo_metadata_snapshot_persisted():
