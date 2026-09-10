@@ -1,0 +1,36 @@
+name: ag-org-pulse
+schedule: every 15m
+deliver: telegram-ops-topic
+severity: info
+allowed_dispositions: [digest, notify]
+read_only: true
+mode: no_agent
+job_type: script_only
+detection_slo: {p50_max: 20m, p95_max: 30m}
+rollback: cronjob_manage update job_id pause (list first)
+script: scripts/sensors/org_activity.py
+# Aftergraph org activity collector — scheduled read-only observation.
+#
+# Collects GitHub activity across every live repository in the Aftergraph
+# org, persists immutable ActivityEvent rows, and records source cursors.
+# Does NOT emit Telegram; rendering is handled by the renderer job.
+#
+# Schedule offset: 15 min. Renderer runs after collector settlement.
+#
+# Scope: live org repos via authenticated gh-read.sh (GET-only).
+# Topology reconciliation: live vs canonical from after-graph-governance.
+#
+# Dedupe: ActivityStore UNIQUE constraint on
+# (repo, kind, action, ref_identifier, payload_digest).
+# Restart: resumes from persisted cursors, no replay.
+#
+# See: scripts/org_activity_renderer.py for Telegram surfaces.
+# See: contracts/activity-event.schema.json for event schema.
+# See: scripts/activity_store.py for persistence contract.
+#
+# Failure semantics:
+#   GitHub unavailable: retain previous card + mark source STALE.
+#   One repo unreachable: PARTIAL, preserve others.
+#   Auth failure: FAIL CLOSED, source blindness alert.
+#   Process crash between persist and render: restart resumes safely
+#     without event duplication (UNIQUE constraint + cursors).

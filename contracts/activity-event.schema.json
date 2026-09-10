@@ -1,0 +1,50 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "activity-event",
+  "type": "object",
+  "required": [
+    "schema",
+    "event_id",
+    "occurred_at",
+    "observed_at",
+    "repo",
+    "kind",
+    "action",
+    "actor",
+    "ref",
+    "source_url",
+    "source_type",
+    "payload_digest"
+  ],
+  "properties": {
+    "schema": {"type": "string", "const": "activity-event/1"},
+    "event_id": {"type": "string", "minLength": 1},
+    "occurred_at": {"type": "string"},
+    "observed_at": {"type": "string"},
+    "repo": {"type": "string"},
+    "plane": {"type": ["string", "null"]},
+    "role": {"type": ["string", "null"]},
+    "kind": {
+      "type": "string",
+      "enum": ["commit", "pull_request", "issue", "workflow_run", "release", "repository"]
+    },
+    "action": {"type": "string"},
+    "actor": {"type": "string"},
+    "ref": {
+      "type": "object",
+      "properties": {
+        "type": {"type": "string", "enum": ["commit", "pull_request", "issue", "workflow_run", "release", "branch", "repository"]},
+        "identifier": {"type": "string"},
+        "name": {"type": "string"}
+      },
+      "required": ["type", "identifier"]
+    },
+    "source_url": {"type": "string"},
+    "source_type": {"type": "string", "enum": ["github_api", "github_events", "local_git", "topology"]},
+    "payload_digest": {"type": "string"},
+    "display_title": {"type": "string"},
+    "importance": {"type": "string", "enum": ["low", "normal", "high", "critical"], "default": "normal"},
+    "correlation_id": {"type": ["string", "null"]},
+    "canonical": {"type": "boolean", "default": true}
+  }
+}
