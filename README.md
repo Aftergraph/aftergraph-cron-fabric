@@ -1,4 +1,5 @@
-![Aftergraph](https://raw.githubusercontent.com/Aftergraph/brand/main/svg/aftergraph-social-banner.svg)
+<!-- aftergraph-brand-os:v1.1.0 -->
+![Aftergraph](https://raw.githubusercontent.com/Aftergraph/brand/v1.1.0/svg/aftergraph-social-banner.svg)
 
 # Aftergraph Cron Fabric
 
