@@ -86,9 +86,14 @@ def _fallback_actor(payload: Dict[str, Any]) -> Optional[str]:
 
 
 def _repo_full_name(payload: Dict[str, Any]) -> Optional[str]:
+    """Full_name of the repo, accepting dict ('{"full_name": "o/r"}')
+    or plain-string ("o/r") repo fields produced by the collector's
+    per-resource fetchers."""
     repo = payload.get("repo") or payload.get("repository")
     if isinstance(repo, dict):
         return repo.get("full_name")
+    if isinstance(repo, str) and repo:
+        return repo
     return None
 
 
@@ -96,6 +101,8 @@ def _repo_name_only(payload: Dict[str, Any]) -> Optional[str]:
     name = payload.get("repo") or payload.get("repository")
     if isinstance(name, dict):
         return name.get("name")
+    if isinstance(name, str) and name:
+        return name.rsplit("/", 1)[-1]
     return None
 
 

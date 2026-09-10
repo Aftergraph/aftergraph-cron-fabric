@@ -196,8 +196,13 @@ def send_pulse_card():
 # ---------------------------------------------------------------------------
 
 def render_digest(store: ActivityStore) -> Optional[str]:
-    """Build an hourly digest, only if new meaningful activity exists."""
-    last_digest = STORE.get_digest_cursor(DIGEST_CURSOR_KEY)
+    """Build an hourly digest, only if new meaningful activity exists.
+
+    Reads the digest cursor from the SAME store it queries, so tests
+    and live runs are consistent (the module-global STORE may hold a
+    different store than the one passed in).
+    """
+    last_digest = store.get_digest_cursor(DIGEST_CURSOR_KEY)
     window_since = last_digest["cursor"] if last_digest else _window_since_long()
 
     recent = store.recent_events(since=window_since, limit=30)
@@ -320,11 +325,22 @@ def check_alerts(store: ActivityStore, collector_ok: bool = True):
     # Alert 3: unknown live repository observed
     unknown_repos = [m["repo"] for m in store.list_repo_metadata()
                      if m["repo"].endswith("/.github") is False]
-    # We detect unknown repos by cross-referencing topology; this is
-    # best-effort in renderer since the collector already warned.
-    topo = store._load_topology() if hasattr(store, "_load_topology") else []
-    topo_names = {r.get("name") for r in topo} if topo else set()
-    unknown = [r for r in unknown_repos if r not in topo_names and not r.endswith("/.github")]
+    # We detect unknown repos by cross-referencing the canonical
+    # topology file (same source the collector uses). Unknown repos
+    # were already recorded as observation events by the collector;
+    # this alert surfaces them once as an exception card.
+    topo = []
+    topo_path = Path.home() / "after-graph-governance" / "docs" / \
+        "platform-topology" / "2.0.json"
+    try:
+        if topo_path.is_file():
+            topo = json.loads(topo_path.read_text(encoding="utf-8")).get("repositories") or []
+    except (json.JSONDecodeError, OSError):
+        topo = []
+    topo_names = {r.get("name", "").rsplit("/", 1)[-1] for r in topo}
+    unknown = [r for r in unknown_repos
+               if r.rsplit("/", 1)[-1] not in topo_names
+               and not r.endswith("/.github")]
     if unknown:
         key = "unknown-live-repo"
         if sent.get(key) != now:  # one alert per run per unknown repo is too noisy; one summary
