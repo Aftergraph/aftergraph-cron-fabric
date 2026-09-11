@@ -2,10 +2,10 @@
   "schema_version": "cron-coverage-policy/1.0",
   "topology_contract": {
     "repo": "Aftergraph/after-graph-governance",
-    "path": "docs/platform-topology/1.0.json"
+    "path": "docs/platform-topology/2.0.json"
   },
   "principle": "Cron Fabric observes topology roles; it does not duplicate repository identity or grant authority.",
-  "principle_v05": "v0.5 adds four fabric concern sensors (Truth / Liveness / Provenance / Research-freeze). Each sensor reads its scope from a canonical machine-readable policy under contracts/ — no sensor code may hardcode repository lists.",
+  "principle_v05": "v0.5 adds four fabric concern sensors (Truth / Liveness / Provenance / Research-freeze). Each sensor reads its scope from a canonical machine-readable policy under contracts/ \u2014 no sensor code may hardcode repository lists.",
   "fabric_concerns": {
     "truth_queue_integrity": {
       "policy": "contracts/queue-policy.yaml",
@@ -59,7 +59,8 @@
       "roles": [
         "verified-code-review",
         "continuity-containment-verification",
-        "temporary-verification-fixture"
+        "temporary-verification-fixture",
+        "skill-portability-benchmark"
       ],
       "disposition": "notify_on_verification_change"
     },
@@ -75,7 +76,8 @@
         "capability-supply-chain",
         "model-rnd-methodology",
         "model-program",
-        "model-lifecycle-registry"
+        "model-lifecycle-registry",
+        "skill-compatibility-contract"
       ],
       "disposition": "deep_audit_on_relevant_change"
     },
@@ -83,7 +85,8 @@
       "roles": [
         "primary-experience",
         "work-inference",
-        "work-intelligence-experience"
+        "work-intelligence-experience",
+        "human-operator-plane"
       ],
       "disposition": "notify_on_contract_mismatch"
     },
@@ -97,7 +100,7 @@
     },
     "legacy": {
       "roles": [
-        "venture-os-consumer"
+        "legacy-migration-source"
       ],
       "disposition": "noise_gate_only"
     },
@@ -111,6 +114,6 @@
   "special_rules": {
     "temporary-verification-fixture": "Track lifecycle and disappearance; never infer permanent platform ownership.",
     "assurance-incubation": "Track topology/state only while INTERNAL HOLD; never emit public/product maturity alerts.",
-    "venture-os-consumer": "Legacy transition concern; no new canonical Aftergraph responsibility may be inferred from AVC activity."
+    "legacy-migration-source": "Legacy transition concern; no new canonical Aftergraph responsibility may be inferred from AVC activity."
   }
 }

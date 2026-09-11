@@ -4,7 +4,7 @@ contracts:
   - id: organization.topology
     canonical_repo: Aftergraph/after-graph-governance
     artifact: slow-changing platform repository topology
-    path: docs/platform-topology/1.0.json
+    path: docs/platform-topology/2.0.json
     mirrors: []
   - id: mission.lifecycle
     canonical_repo: Aftergraph/runtime
