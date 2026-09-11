@@ -110,7 +110,7 @@ def coverage_errors(path=Path("contracts/coverage-policy.json")):
     topology = data.get("topology_contract", {})
     if topology.get("repo") != "Aftergraph/after-graph-governance":
         errors.append("coverage policy: topology owner must be Aftergraph/after-graph-governance")
-    if topology.get("path") != "docs/platform-topology/1.0.json":
+    if topology.get("path") != "docs/platform-topology/2.0.json":
         errors.append("coverage policy: unexpected topology path")
 
     concerns = data.get("concerns")
