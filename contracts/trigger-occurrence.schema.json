@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://aftergraph.org/contracts/trigger-occurrence/0.1",
+  "title": "TriggerOccurrence v0.1",
+  "type": "object",
+  "required": [
+    "trigger_id", "cause_class", "observed_at", "subject_ref",
+    "source_refs", "evidence_refs", "freshness", "confidence"
+  ],
+  "properties": {
+    "trigger_id": {"type": "string", "minLength": 1},
+    "cause_class": {"type": "string", "minLength": 1},
+    "observed_at": {"type": "string", "minLength": 1},
+    "subject_ref": {"type": "string", "minLength": 1},
+    "source_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+    "evidence_refs": {"type": "array", "items": {"type": "string", "minLength": 1}, "minItems": 1},
+    "freshness": {"enum": ["fresh", "stale", "unknown"]},
+    "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+  },
+  "additionalProperties": false
+}
