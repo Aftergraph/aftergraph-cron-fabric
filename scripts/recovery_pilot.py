@@ -42,6 +42,7 @@ def run_recovery_pilot(subject: dict, policy: dict, journal: RecoveryJournal,
 
     proposal_claimed = journal.claim_proposal(proposal)
     authority = evaluate_pilot_authority(proposal, policy, now)
+    journal.record_authority(authority)
     result = {"proposal": asdict(proposal), "proposal_claimed": proposal_claimed,
               "authority": asdict(authority)}
     if authority.outcome != "AUTHORIZED":
@@ -66,6 +67,7 @@ def run_recovery_pilot(subject: dict, policy: dict, journal: RecoveryJournal,
     execution = executor(
         intent, proposal.baseline_last_turn_at,
         proposal.baseline_last_activity_at)
+    journal.record_execution(execution)
     result["intent"] = asdict(intent)
     result["execution"] = asdict(execution)
 
@@ -82,6 +84,7 @@ def run_recovery_pilot(subject: dict, policy: dict, journal: RecoveryJournal,
     verification = verify_recovery(
         proposal, authority, execution, progress,
         _verification_now(now, progress.observed_at))
+    journal.record_verification(verification)
     result["progress"] = asdict(progress)
     result["verification"] = asdict(verification)
     result["state"] = verification.verdict

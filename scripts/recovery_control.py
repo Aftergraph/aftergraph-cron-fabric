@@ -88,8 +88,12 @@ class RecoveryIntent:
                continuation_prompt: str, now: datetime) -> "RecoveryIntent":
         if authority.proposal_id != proposal.proposal_id:
             raise ValueError("authority/proposal mismatch")
-        idem = _stable_id("intent", {"proposal_id": proposal.proposal_id,
-                                      "session_id": proposal.session_id})
+        idem = _stable_id("intent", {
+            "dedupe_key": proposal.dedupe_key,
+            "attempt_number": proposal.attempt_number,
+            "session_id": proposal.session_id,
+            "action": proposal.proposed_action,
+        })
         return cls(idem, proposal.proposal_id, authority.authority_receipt_id,
                    proposal.session_id, "continue_existing_session",
                    continuation_prompt, idem, proposal.expires_at, _iso(now))
@@ -195,6 +199,37 @@ class RecoveryJournal:
             self.db.rollback()
             return False
 
+    def _record_evidence(self, evidence_id: str, kind: str,
+                         payload: dict, created_at: str) -> bool:
+        try:
+            self.db.execute("BEGIN IMMEDIATE")
+            self.db.execute(
+                "INSERT INTO evidence VALUES (?,?,?,?)",
+                (evidence_id, kind, json.dumps(payload, sort_keys=True), created_at))
+            self.db.commit()
+            return True
+        except sqlite3.IntegrityError:
+            self.db.rollback()
+            return False
+
+    def record_authority(self, receipt: AuthorityReceipt) -> bool:
+        return self._record_evidence(
+            receipt.authority_receipt_id, "authority",
+            receipt.__dict__, receipt.issued_at)
+
+    def record_execution(self, receipt: ExecutionReceipt) -> bool:
+        return self._record_evidence(
+            receipt.execution_receipt_id, "execution",
+            receipt.__dict__, receipt.finished_at)
+
+    def record_verification(self, receipt: VerificationReceipt) -> bool:
+        return self._record_evidence(
+            receipt.verification_receipt_id, "verification",
+            receipt.__dict__, receipt.verified_at)
+
+    def evidence_kinds(self) -> list[str]:
+        return [row[0] for row in self.db.execute(
+            "SELECT kind FROM evidence ORDER BY rowid").fetchall()]
 def evaluate_recovery_eligibility(subject: dict, journal: RecoveryJournal,
                                   dedupe_key: str, now: datetime) -> EligibilityResult:
     reasons = []
