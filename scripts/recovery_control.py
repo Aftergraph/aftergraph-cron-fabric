@@ -331,7 +331,7 @@ def verify_recovery(proposal: RecoveryProposal,
                 refs.append("progress_timestamp_future")
             elif observed_at < _parse(execution.finished_at):
                 refs.append("progress_precedes_execution")
-            elif progress.has_progress:
+            elif any(ref.startswith("last_turn_at:") for ref in progress.evidence_refs):
                 verdict = "VERIFIED_RECOVERED"
         except ValueError:
             refs.append("progress_timestamp_invalid")
