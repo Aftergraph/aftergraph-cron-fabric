@@ -1,0 +1,18 @@
+{
+  "mode": "shadow",
+  "source": "hermes-goal-watchdog",
+  "trigger_id": "mission.continuity.observed",
+  "input": {
+    "session_id": "goal-example",
+    "status": "running",
+    "idle_minutes": 31,
+    "observed_at": "2026-09-16T18:00:00Z",
+    "source_ref": "hermes:state-meta:goal:goal-example"
+  },
+  "guarantees": {
+    "writes_hermes_state": false,
+    "dispatches_agent": false,
+    "sends_notification": false,
+    "can_claim_recovered": false
+  }
+}
