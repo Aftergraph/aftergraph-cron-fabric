@@ -27,3 +27,6 @@ Thumbs.db
 *.log
 .venv/
 deploy/receipts/ag-fabric-delivery-*.json
+
+# Local isolated agent worktrees
+.worktrees/
