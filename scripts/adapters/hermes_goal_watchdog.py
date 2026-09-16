@@ -14,12 +14,16 @@ def normalize_goal_observation(data: dict) -> TriggerOccurrence:
     source_ref = str(data.get("source_ref", "")).strip()
     if not source_ref:
         raise ValueError("source_ref is required")
+
+    status = str(data.get("status", "unknown")).strip() or "unknown"
+    if status != "active":
+        raise ValueError("continuity v0.1 evaluates active goals only")
+
     try:
         idle_minutes = max(0, int(data["idle_minutes"]))
     except (KeyError, TypeError, ValueError) as exc:
         raise ValueError("idle_minutes is required and must be an integer") from exc
 
-    status = str(data.get("status", "unknown")).strip() or "unknown"
     return TriggerOccurrence.from_dict({
         "trigger_id": "mission.continuity.observed",
         "cause_class": "liveness",

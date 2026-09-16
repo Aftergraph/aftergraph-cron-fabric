@@ -11,7 +11,7 @@ sys.path.insert(0, str(ROOT / "scripts" / "adapters"))
 from hermes_goal_watchdog import normalize_goal_observation
 
 
-def sample(idle=31, status="running"):
+def sample(idle=31, status="active"):
     return {
         "session_id": "goal-123",
         "status": status,
@@ -42,6 +42,16 @@ def test_missing_session_fails_closed():
         assert "session_id" in str(exc)
     else:
         raise AssertionError("missing session accepted")
+
+
+def test_non_active_goal_is_out_of_scope():
+    for status in ("paused", "done"):
+        try:
+            normalize_goal_observation(sample(500, status=status))
+        except ValueError as exc:
+            assert "active goals" in str(exc)
+        else:
+            raise AssertionError(f"{status} goal entered continuity evaluation")
 
 
 def test_cli_writes_shadow_receipt_only():
