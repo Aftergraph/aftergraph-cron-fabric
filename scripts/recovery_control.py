@@ -236,3 +236,82 @@ def evaluate_pilot_authority(proposal: RecoveryProposal, policy: dict,
         _stable_id("authority", payload), proposal.proposal_id,
         "aftergraph.trigger-fabric.pilot-recovery/0.2", outcome,
         tuple(constraints), issued, expires, "trigger-fabric:pilot-policy")
+
+
+@dataclass(frozen=True)
+class ProgressObservation:
+    session_id: str
+    observed_at: str
+    evidence_refs: tuple[str, ...]
+    has_progress: bool
+    session_matches: bool
+
+
+def observe_progress(proposal: RecoveryProposal, after: dict) -> ProgressObservation:
+    session_id = str(after.get("session_id") or "")
+    observed_at = str(after.get("observed_at") or "")
+    refs = []
+    if session_id == proposal.session_id:
+        last_turn = float(after.get("last_turn_at", 0) or 0)
+        last_activity = float(after.get("last_activity_at", 0) or 0)
+        if last_turn > proposal.baseline_last_turn_at:
+            refs.append(
+                f"last_turn_at:{proposal.baseline_last_turn_at}->{last_turn}")
+        if last_activity > proposal.baseline_last_activity_at:
+            refs.append(
+                f"last_activity_at:{proposal.baseline_last_activity_at}->{last_activity}")
+    return ProgressObservation(
+        session_id=session_id,
+        observed_at=observed_at,
+        evidence_refs=tuple(refs),
+        has_progress=bool(refs),
+        session_matches=session_id == proposal.session_id,
+    )
+
+
+def verify_recovery(proposal: RecoveryProposal,
+                    authority: AuthorityReceipt,
+                    execution: ExecutionReceipt,
+                    progress: ProgressObservation,
+                    now: datetime) -> VerificationReceipt:
+    verdict = "RECOVERY_UNVERIFIED"
+    refs = list(progress.evidence_refs)
+    if execution.exit_code != 0:
+        verdict = "RECOVERY_FAILED"
+        refs.append(f"execution_exit_code:{execution.exit_code}")
+    elif authority.outcome != "AUTHORIZED":
+        refs.append(f"authority:{authority.outcome}")
+    elif authority.proposal_id != proposal.proposal_id:
+        refs.append("authority_proposal_mismatch")
+    elif execution.session_id != proposal.session_id:
+        refs.append("execution_session_mismatch")
+    elif not progress.session_matches:
+        refs.append("progress_session_mismatch")
+    elif not progress.observed_at:
+        refs.append("progress_timestamp_missing")
+    else:
+        try:
+            observed_at = _parse(progress.observed_at)
+            if observed_at > now.astimezone(timezone.utc) + timedelta(minutes=1):
+                refs.append("progress_timestamp_future")
+            elif observed_at < _parse(execution.finished_at):
+                refs.append("progress_precedes_execution")
+            elif progress.has_progress:
+                verdict = "VERIFIED_RECOVERED"
+        except ValueError:
+            refs.append("progress_timestamp_invalid")
+    payload = {
+        "proposal_id": proposal.proposal_id,
+        "session_id": proposal.session_id,
+        "verdict": verdict,
+        "verified_at": _iso(now),
+        "evidence_refs": sorted(refs),
+    }
+    return VerificationReceipt(
+        verification_receipt_id=_stable_id("verification", payload),
+        proposal_id=proposal.proposal_id,
+        session_id=proposal.session_id,
+        verdict=verdict,
+        evidence_refs=tuple(sorted(refs)),
+        verified_at=_iso(now),
+    )

@@ -1,0 +1,12 @@
+{
+  "schema": "aftergraph.trigger-fabric.recovery-pilot-config/0.2",
+  "pilot": true,
+  "session_id": "REPLACE_WITH_EXACT_PILOT_SESSION_ID",
+  "continuation_prompt": "Continue the existing goal from the last verified checkpoint.",
+  "risk": "low",
+  "execute": false,
+  "dedupe_window_minutes": 30,
+  "max_unsuccessful_attempts": 2,
+  "authority_ttl_minutes": 10,
+  "production_recovery_enabled": false
+}
