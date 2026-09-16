@@ -21,14 +21,14 @@ def make_intent():
         created_at=NOW, expires_at=NOW.replace(minute=10))
     a = evaluate_pilot_authority(
         p, {"pilot": True, "session_id": p.session_id}, NOW)
-    return p, RecoveryIntent.create(p, a, "Continue from the last verified checkpoint.", NOW)
+    return p, RecoveryIntent.create(
+        p, a, "Continue from the last verified checkpoint.", NOW)
 
-
-def test_exact_shell_free_argv():
+def test_exact_shell_free_classic_cli_argv():
     _, intent = make_intent()
     argv = build_resume_argv(intent.session_id, intent.continuation_prompt)
-    assert argv == ["hermes", "--resume", "pilot-abc_123", "--oneshot",
-                    "Continue from the last verified checkpoint."]
+    assert argv == ["hermes", "--resume", "pilot-abc_123", "--cli"]
+    assert "--oneshot" not in argv
     assert isinstance(argv, list)
 
 
@@ -41,23 +41,26 @@ def test_invalid_session_id_rejected():
         else:
             raise AssertionError(f"unsafe session id accepted: {value!r}")
 
-def test_execute_recovery_captures_evidence_without_claiming_recovered():
+
+def test_execute_recovery_uses_classic_cli_transport():
     proposal, intent = make_intent()
     seen = {}
 
-    def fake_run(argv, **kwargs):
+    def fake_run(argv, prompt, timeout_seconds):
         seen["argv"] = argv
-        seen["kwargs"] = kwargs
+        seen["prompt"] = prompt
+        seen["timeout"] = timeout_seconds
         return subprocess.CompletedProcess(argv, 0, stdout="continued", stderr="")
 
     receipt = execute_recovery(
         intent, proposal.baseline_last_turn_at,
         proposal.baseline_last_activity_at, runner=fake_run,
-        now_fn=lambda: NOW)
-    assert seen["argv"] == build_resume_argv(
-        intent.session_id, intent.continuation_prompt)
-    assert seen["kwargs"].get("shell") is not True
+        now_fn=lambda: NOW, timeout_seconds=77)
+    assert seen["argv"] == ["hermes", "--resume", "pilot-abc_123", "--cli"]
+    assert seen["prompt"] == intent.continuation_prompt
+    assert seen["timeout"] == 77
     assert receipt.exit_code == 0
+    assert receipt.runtime_ref == "hermes:classic-cli-pty"
     assert receipt.session_id == intent.session_id
     assert receipt.baseline_last_turn_at == 100
     assert receipt.stdout_ref.startswith("sha256:")
